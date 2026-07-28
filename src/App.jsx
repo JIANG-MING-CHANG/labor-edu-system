@@ -235,7 +235,15 @@ export default function LaborEduApp() {
   
   const { db, auth } = useMemo(() => {
     try {
-      const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+      const firebaseConfig = {
+        apiKey: "AIzaSyDUWK4fLiiRWF5oWKvtI-yQqj8bjUrKPC8",
+        authDomain: "labor-edu.firebaseapp.com",
+        projectId: "labor-edu",
+        storageBucket: "labor-edu.firebasestorage.app",
+        messagingSenderId: "643910144514",
+        appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+        measurementId: "G-6CCC25C7T0"
+      };
       if (!firebaseConfig) throw new Error("Firebase config missing");
       const app = initializeApp(firebaseConfig);
       return { db: getFirestore(app), auth: getAuth(app) };
@@ -278,34 +286,31 @@ export default function LaborEduApp() {
     return <div className="p-10 text-red-500">系統初始化中，或缺乏後端設定。</div>;
   }
 
-  if (!role) {
-    return (
-      <div className={appClassName}>
-        <div className="absolute top-4 right-4 z-50">
-           <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-800/20 transition-all text-current shadow-lg backdrop-blur-sm border border-slate-500/20">
-             {isDarkMode ? <Sun size={24}/> : <Moon size={24}/>}
-           </button>
-        </div>
-        <LoginScreen setRole={(r, name) => {
-          sfx.init(); 
-          setUserName(name);
-          setRole(r);
-        }} />
-      </div>
-    );
-  }
-
   return (
     <div className={appClassName}>
+      {/* 全域日夜間模式切換按鈕 (右上角常駐) */}
+      <div className="fixed top-4 right-4 z-[60] print:hidden">
+         <button onClick={toggleTheme} className="p-2 rounded-full bg-white/30 dark:bg-black/30 hover:bg-slate-300/50 dark:hover:bg-slate-800/50 transition-all text-slate-900 dark:text-white shadow-lg backdrop-blur-md border border-slate-500/20">
+           {isDarkMode ? <Sun size={24}/> : <Moon size={24}/>}
+         </button>
+      </div>
+
+      {/* 科技感背景特效 (全域常駐) */}
       <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
          <div className={`absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[120px] mix-blend-screen opacity-40 animate-pulse ${isDarkMode ? 'bg-blue-900' : 'bg-blue-300'}`} style={{animationDuration: '8s'}} />
          <div className={`absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[150px] mix-blend-screen opacity-30 animate-pulse ${isDarkMode ? 'bg-purple-900' : 'bg-purple-300'}`} style={{animationDuration: '12s'}} />
       </div>
       
-      {role === 'teacher' ? (
-        <TeacherDashboard db={db} appId={appId} user={user} toggleTheme={toggleTheme} isDark={isDarkMode} onLogout={handleLogout} />
+      {!role ? (
+        <LoginScreen setRole={(r, name) => {
+          sfx.init(); 
+          setUserName(name);
+          setRole(r);
+        }} />
+      ) : role === 'teacher' ? (
+        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} />
       ) : (
-        <StudentView db={db} appId={appId} user={user} userName={userName} toggleTheme={toggleTheme} isDark={isDarkMode} onLogout={handleLogout} />
+        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} />
       )}
     </div>
   );
@@ -336,7 +341,7 @@ function LoginScreen({ setRole }) {
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
           LaborSphere
         </h1>
-        <p className="text-xl font-medium tracking-wide opacity-80">台灣勞權啟蒙互動宇宙</p>
+        <p className="text-xl font-medium tracking-wide opacity-80">勞權教育課程互動</p>
       </div>
 
       <div className="z-10 w-full max-w-md bg-white/10 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-slate-800 p-8 rounded-3xl shadow-2xl">
@@ -396,7 +401,7 @@ function LoginScreen({ setRole }) {
   );
 }
 
-function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout }) {
+function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [session, setSession] = useState(null);
   const [myAnswer, setMyAnswer] = useState(null);
   const [myText, setMyText] = useState('');
@@ -422,7 +427,7 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
              if (myAnswer === correct) {
                sfx.success();
                setConfetti(true);
-               setTimeout(()=>setConfetti(false), 4000); // 延長彩帶時間
+               setTimeout(()=>setConfetti(false), 4000); 
              } else {
                sfx.fail();
                setShake(true);
@@ -506,6 +511,7 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
       }, { merge: true });
     } catch(e) {
       console.error("Save error:", e);
+      alert("儲存失敗，請檢查網路連線。");
     }
   };
 
@@ -514,7 +520,7 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
   if (!session || session.status === 'closed') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center relative">
-        <div className="absolute top-4 right-16 z-50">
+        <div className="fixed top-4 right-16 z-50 print:hidden">
           <button onClick={onLogout} className="p-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 transition-all font-bold flex items-center shadow-lg backdrop-blur-sm border border-red-500/20">
              <LogOut size={18} className="mr-2"/> 離開
           </button>
@@ -527,7 +533,16 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
   }
 
   if (session.status === 'finished') {
-    return <StudentResultView db={db} appId={appId} user={user} userName={userName} onLogout={onLogout} />;
+    return (
+      <>
+        <div className="fixed top-4 right-16 z-50 print:hidden">
+           <button onClick={onLogout} className="p-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 transition-all font-bold flex items-center shadow-lg backdrop-blur-sm border border-red-500/20">
+              <LogOut size={18} className="mr-2"/> 離開並登出
+           </button>
+        </div>
+        <StudentResultView db={db} appId={appId} user={user} userName={userName} onLogout={onLogout} />
+      </>
+    );
   }
 
   const currentQ = SCENARIOS[session.currentQuestion];
@@ -560,6 +575,12 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
         }
       `}</style>
       
+      <div className="fixed top-4 right-16 z-50 print:hidden">
+         <button onClick={onLogout} className="p-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 transition-all font-bold flex items-center shadow-lg backdrop-blur-sm border border-red-500/20">
+            <LogOut size={18} className="mr-2"/> 離開
+         </button>
+      </div>
+
       {confetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {[...Array(200)].map((_, i) => (
@@ -577,7 +598,7 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6 glass-card p-4 rounded-2xl">
+      <div className="flex justify-between items-center mb-6 glass-card p-4 rounded-2xl mt-12 md:mt-0">
         <div className="flex items-center space-x-3">
           <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-500/30">
             {userName.charAt(0)}
@@ -714,13 +735,13 @@ function StudentView({ db, appId, user, userName, toggleTheme, isDark, onLogout 
            <p className="text-xl leading-relaxed mb-6 font-medium relative z-10">{currentQ.plainText}</p>
            
            <div className="grid md:grid-cols-2 gap-4 relative z-10">
-             <div className="bg-black/10 dark:bg-black/30 p-5 rounded-2xl border border-black/5 dark:border-white/5 backdrop-blur-sm">
-               <div className="font-bold flex items-center mb-3 text-blue-600 dark:text-blue-400"><Scale size={18} className="mr-2"/>法源依據</div>
+             <div className="bg-black/5 dark:bg-black/30 p-5 rounded-2xl border border-black/5 dark:border-white/5 backdrop-blur-sm">
+               <div className="font-bold flex items-center mb-3 text-blue-700 dark:text-blue-400"><Scale size={18} className="mr-2"/>法源依據</div>
                <div className="text-sm leading-relaxed opacity-90">{currentQ.legalText}</div>
              </div>
              
              <div className="bg-purple-900/10 dark:bg-purple-900/30 p-5 rounded-2xl border border-purple-500/20 backdrop-blur-sm">
-               <div className="font-bold flex items-center mb-3 text-purple-600 dark:text-purple-400"><ShieldAlert size={18} className="mr-2"/>實務判例</div>
+               <div className="font-bold flex items-center mb-3 text-purple-700 dark:text-purple-400"><ShieldAlert size={18} className="mr-2"/>實務判例</div>
                <div className="text-sm leading-relaxed opacity-90">{currentQ.rulingText.replace('⚖️ 實務判例：', '')}</div>
              </div>
            </div>
@@ -765,12 +786,7 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
-       <div className="absolute top-4 right-16 z-50 print:hidden">
-          <button onClick={onLogout} className="p-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 transition-all font-bold flex items-center shadow-lg backdrop-blur-sm border border-red-500/20">
-             <LogOut size={18} className="mr-2"/> 離開並登出
-          </button>
-       </div>
-       <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center print:shadow-none print:border-none">
+       <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center print:shadow-none print:border-none mt-12 md:mt-0">
           <h2 className="text-3xl font-extrabold mb-2">訓練完成！</h2>
           <p className="text-lg opacity-60 mb-8">{userName} 的專屬勞動意識雷達圖</p>
           
@@ -802,7 +818,7 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
   );
 }
 
-function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
+function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
   const [session, setSession] = useState({ status: 'closed', currentQuestion: 0 });
   const [participants, setParticipants] = useState([]);
   const [timeLimit, setTimeLimit] = useState(5); 
@@ -811,7 +827,11 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
     if (!user) return;
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
     const unsub = onSnapshot(sessionRef, (snapshot) => {
-      if (snapshot.exists()) setSession(snapshot.data());
+      if (snapshot.exists()) {
+        setSession(snapshot.data());
+      } else {
+        setSession({ status: 'closed', currentQuestion: 0 });
+      }
     });
     return () => unsub();
   }, [user, db, appId]);
@@ -827,9 +847,15 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
     return () => unsub();
   }, [user, db, appId]);
 
+  // 【加入寫入失敗捕捉機制，解決沒反應的問題】
   const updateSession = async (data) => {
-    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
-    await setDoc(ref, data, { merge: true });
+    try {
+      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
+      await setDoc(ref, data, { merge: true });
+    } catch (error) {
+      console.error("更新失敗:", error);
+      alert("⚠️ 系統更新失敗！\n請確認您的 Firebase Firestore 權限 (Rules) 是否已修改為:\nallow read, write: if true;\n\n詳細錯誤：" + error.message);
+    }
   };
 
   const startSession = () => updateSession({ status: 'active', currentQuestion: 0, endTime: Date.now() + timeLimit * 60 * 1000 });
@@ -843,11 +869,14 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
     }
   };
 
+  // 【修正自由跳轉機制】
   const jumpToQuestion = (idx) => {
-    if (session.status !== 'closed' && idx === session.currentQuestion) return;
+    if (session.status !== 'closed' && session.status !== 'finished' && idx === session.currentQuestion) return;
+    
     const msg = session.status === 'closed' 
       ? `系統目前為未開放狀態。\n確定要開放系統，並直接從第 ${idx + 1} 關開始嗎？` 
       : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間將依據設定重新計算。`;
+      
     if (window.confirm(msg)) {
       updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + timeLimit * 60 * 1000 });
     }
@@ -921,13 +950,13 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
   });
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#0B1120] text-slate-100 font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-purple-500/30 transition-colors">
       <style>{`
         .cyber-panel {
-          background: rgba(15, 23, 42, 0.6);
+          background: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.7)'};
           backdrop-filter: blur(16px);
-          border: 1px solid rgba(56, 189, 248, 0.1);
-          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(56, 189, 248, 0.05);
+          border: 1px solid ${isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.4)'};
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
         .cyber-border { position: relative; }
         .cyber-border::after {
@@ -937,20 +966,20 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
       `}</style>
       
       {/* Sidebar Controls */}
-      <div className="w-full md:w-80 bg-[#0B1120]/90 border-r border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
-        <h2 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-blue-400 via-purple-400 to-pink-500 cyber-border pb-4">
+      <div className="w-full md:w-80 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+        <h2 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 cyber-border pb-4 mt-8 md:mt-0">
           LaborSphere
-          <span className="block text-sm font-medium tracking-widest opacity-60 text-blue-300 mt-1 uppercase">Control Center</span>
+          <span className="block text-sm font-medium tracking-widest opacity-60 text-blue-600 dark:text-blue-300 mt-1 uppercase">Control Center</span>
         </h2>
 
         <div className="space-y-5 flex-grow">
           <div className="cyber-panel p-4 rounded-xl flex items-center justify-between">
-            <span className="font-bold text-slate-300">連線學員</span>
+            <span className="font-bold text-slate-700 dark:text-slate-300">連線學員</span>
             <span className="bg-blue-500 text-white px-4 py-1 rounded-full font-black shadow-[0_0_15px_rgba(59,130,246,0.6)] animate-pulse">{participants.filter(p=>!p.kicked).length}</span>
           </div>
 
           <div className="cyber-panel p-4 rounded-xl">
-            <label className="block text-sm font-bold text-blue-400 mb-2 flex items-center"><Clock size={16} className="mr-2"/>作答時間設定 (分鐘)</label>
+            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><Clock size={16} className="mr-2"/>作答時間設定 (分鐘)</label>
             <input 
               type="number" 
               min="1" 
@@ -958,11 +987,11 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
               value={timeLimit}
               onChange={(e) => setTimeLimit(Number(e.target.value))}
               disabled={session.status !== 'closed' && session.status !== 'finished'}
-              className="w-full bg-[#0B1120] border border-blue-900/50 rounded-lg p-3 text-white font-mono text-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 transition-all"
+              className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 transition-all"
             />
           </div>
 
-          <div className="text-xs font-bold tracking-widest text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
+          <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
@@ -975,7 +1004,7 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
                 className={`py-2 rounded-lg font-mono text-sm font-bold transition-all border ${
                   session.currentQuestion === idx && session.status !== 'closed'
                     ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.8)]' 
-                    : 'bg-[#0B1120] text-slate-400 border-blue-900/50 hover:bg-blue-900/40 hover:text-blue-300 hover:border-blue-500/50'
+                    : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-400 border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-300 hover:border-blue-400 dark:hover:border-blue-500/50'
                 }`}
                 title={`直接進入第 ${idx + 1} 關`}
               >
@@ -985,25 +1014,25 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
           </div>
 
           {session.status === 'closed' ? (
-             <button onClick={startSession} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105">
+             <button onClick={startSession} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105">
                <Play className="mr-2" size={24}/> 開放登入並開始 (第1關)
              </button>
           ) : (
             <>
               {session.status === 'active' && (
-                <button onClick={stopTimer} className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 font-bold text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:scale-[1.03]">
+                <button onClick={stopTimer} className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:scale-[1.03]">
                   <Square className="mr-2" size={20}/> 強制停止作答 (進入討論)
                 </button>
               )}
               
               {session.status === 'discussion' && (
-                <button onClick={revealAnswer} className="w-full py-4 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 font-bold text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-[1.03]">
+                <button onClick={revealAnswer} className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-[1.03]">
                   <CheckCircle2 className="mr-2" size={20}/> 公佈解答與解析
                 </button>
               )}
 
               {session.status === 'revealed' && (
-                <button onClick={nextQuestion} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03]">
+                <button onClick={nextQuestion} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03]">
                   <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題'}
                 </button>
               )}
@@ -1012,20 +1041,20 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
         </div>
         
         <div className="mt-auto space-y-3 pt-8">
-           <button onClick={exportCSV} className="w-full py-3 rounded-xl cyber-panel hover:bg-slate-800 text-blue-300 font-medium flex items-center justify-center transition-colors">
+           <button onClick={exportCSV} className="w-full py-3 rounded-xl cyber-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 dark:text-blue-300 font-medium flex items-center justify-center transition-colors">
              <FileDown size={18} className="mr-2"/> 匯出成效報表 (CSV)
            </button>
-           <button onClick={endAndClearSession} className="w-full py-3 rounded-xl bg-red-950/40 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-medium flex items-center justify-center transition-colors">
+           <button onClick={endAndClearSession} className="w-full py-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 font-medium flex items-center justify-center transition-colors">
              <XCircle size={18} className="mr-2"/> 結束並清空資料
            </button>
-           <button onClick={onLogout} className="w-full py-3 rounded-xl bg-slate-900/50 border border-slate-800 hover:bg-slate-800 text-slate-400 font-medium flex items-center justify-center transition-colors">
+           <button onClick={onLogout} className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 font-medium flex items-center justify-center transition-colors">
              <LogOut size={18} className="mr-2"/> 安全退出中控台
            </button>
         </div>
       </div>
 
       {/* Main Dashboard Area */}
-      <div className="flex-1 p-6 md:p-10 overflow-y-auto h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0B1120] to-black">
+      <div className="flex-1 p-6 md:p-10 overflow-y-auto h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgzMCwgNTgsIDEzOCwgMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] pointer-events-none opacity-50 z-0"></div>
 
          {session.status !== 'closed' && session.status !== 'finished' ? (
@@ -1036,8 +1065,8 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
                  {/* Live Chart */}
                  <div className="lg:col-span-2 cyber-panel rounded-3xl p-6 shadow-2xl">
                     <div className="flex justify-between items-center mb-6 cyber-border pb-4">
-                      <h3 className="font-bold text-xl flex items-center text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
-                      <span className="text-sm px-4 py-1.5 bg-blue-900/30 border border-blue-500/30 text-blue-200 rounded-full font-mono">
+                      <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
+                      <span className="text-sm px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200 rounded-full font-mono">
                         SYNC: {answerCount} / {participants.length}
                       </span>
                     </div>
@@ -1046,7 +1075,7 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
                         <BarChart data={chartData}>
                           <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
                           <YAxis stroke="#64748b" allowDecimals={false} />
-                          <Tooltip contentStyle={{backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)'}} cursor={{fill: 'rgba(56, 189, 248, 0.1)'}} />
+                          <Tooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
                           <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1000}>
                             {chartData.map((entry, index) => {
                                const isCorrect = entry.name === currentQ.correctAnswer;
@@ -1067,49 +1096,49 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
                     <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none ${session.status === 'active' ? 'bg-blue-500' : session.status === 'discussion' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
                     
                     {session.status === 'active' && (
-                      <div className="text-center text-blue-300 relative z-10">
-                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-white">作答接收中</h4>
-                        <p className="text-sm opacity-80 text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
+                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
+                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
+                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
+                        <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
                       </div>
                     )}
                     {session.status === 'discussion' && (
-                      <div className="text-center text-yellow-300 relative z-10">
-                        <MessageSquare size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] animate-pulse" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-white">思辨引導期</h4>
-                        <p className="text-sm opacity-90 mb-4 text-yellow-100">請邀請選擇少數選項的學員發表觀點。</p>
-                        <p className="inline-block bg-yellow-900/40 border border-yellow-500/50 px-4 py-2 rounded-xl text-yellow-200 font-bold shadow-inner">
+                      <div className="text-center text-yellow-600 dark:text-yellow-300 relative z-10">
+                        <MessageSquare size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)] dark:drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] animate-pulse" />
+                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">思辨引導期</h4>
+                        <p className="text-sm opacity-90 mb-4 text-yellow-800 dark:text-yellow-100">請邀請選擇少數選項的學員發表觀點。</p>
+                        <p className="inline-block bg-yellow-100 dark:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-500/50 px-4 py-2 rounded-xl text-yellow-700 dark:text-yellow-200 font-bold shadow-inner">
                           正解預覽：<span className="text-2xl ml-1">{currentQ.correctAnswer}</span>
                         </p>
                       </div>
                     )}
                     {session.status === 'revealed' && (
-                      <div className="text-center text-green-300 relative z-10">
-                        <CheckCircle2 size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-white">解答已公佈</h4>
-                        <p className="text-sm opacity-80 text-green-100">請參照下方「法理面板」進行深度解析。</p>
+                      <div className="text-center text-green-600 dark:text-green-300 relative z-10">
+                        <CheckCircle2 size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.6)] dark:drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
+                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">解答已公佈</h4>
+                        <p className="text-sm opacity-80 text-green-700 dark:text-green-100">請參照下方「法理面板」進行深度解析。</p>
                       </div>
                     )}
                  </div>
               </div>
 
-              {/* Legal Reference Panel (Always visible in Teacher Dashboard) */}
-              <div className="cyber-panel rounded-3xl p-8 border-l-4 border-l-purple-500 shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900/80 to-purple-900/20">
-                 <h3 className="font-black text-2xl mb-6 flex items-center text-white"><ShieldAlert className="mr-3 text-purple-400" size={28}/> 👩‍⚖️ 深度法理與實務判例解析 (講師專屬)</h3>
+              {/* Legal Reference Panel */}
+              <div className="cyber-panel rounded-3xl p-8 border-l-4 border-l-purple-500 shadow-2xl relative overflow-hidden bg-gradient-to-br from-white to-purple-50 dark:from-slate-900/80 dark:to-purple-900/20">
+                 <h3 className="font-black text-2xl mb-6 flex items-center text-slate-900 dark:text-white"><ShieldAlert className="mr-3 text-purple-500 dark:text-purple-400" size={28}/> 👩‍⚖️ 深度法理與實務判例解析 (講師專屬)</h3>
                  
                  <div className="grid md:grid-cols-2 gap-6 relative z-10">
-                    <div className="bg-black/40 p-6 rounded-2xl border border-blue-500/20 backdrop-blur-md">
-                       <div className="font-bold text-lg mb-3 flex items-center text-blue-300">
+                    <div className="bg-blue-50/50 dark:bg-black/40 p-6 rounded-2xl border border-blue-200 dark:border-blue-500/20 backdrop-blur-md">
+                       <div className="font-bold text-lg mb-3 flex items-center text-blue-700 dark:text-blue-300">
                           <Scale size={20} className="mr-2"/> 條文依據
                        </div>
-                       <p className="text-blue-50/90 leading-relaxed text-sm">{currentQ.legalText}</p>
+                       <p className="text-slate-700 dark:text-blue-50/90 leading-relaxed text-sm">{currentQ.legalText}</p>
                     </div>
                     
-                    <div className="bg-purple-950/40 p-6 rounded-2xl border border-purple-500/30 backdrop-blur-md shadow-[inset_0_0_20px_rgba(168,85,247,0.1)]">
-                       <div className="font-bold text-lg mb-3 flex items-center text-purple-300">
+                    <div className="bg-purple-50/50 dark:bg-purple-950/40 p-6 rounded-2xl border border-purple-200 dark:border-purple-500/30 backdrop-blur-md shadow-[inset_0_0_20px_rgba(168,85,247,0.05)] dark:shadow-[inset_0_0_20px_rgba(168,85,247,0.1)]">
+                       <div className="font-bold text-lg mb-3 flex items-center text-purple-700 dark:text-purple-300">
                           <span className="text-xl mr-2">⚖️</span> 實務判例 / 裁罰實例
                        </div>
-                       <p className="text-purple-50/90 leading-relaxed text-sm font-medium">
+                       <p className="text-slate-700 dark:text-purple-50/90 leading-relaxed text-sm font-medium">
                           {currentQ.rulingText.replace('⚖️ 實務判例：', '')}
                        </p>
                     </div>
@@ -1118,10 +1147,10 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
 
               {/* Student Feedback Table */}
               <div className="cyber-panel rounded-3xl p-6 shadow-2xl">
-                 <h3 className="font-bold text-xl mb-6 flex items-center text-blue-300 cyber-border pb-4"><Users className="mr-2"/> 學員即時遙測與陣列控制</h3>
+                 <h3 className="font-bold text-xl mb-6 flex items-center text-blue-700 dark:text-blue-300 cyber-border pb-4"><Users className="mr-2"/> 學員即時遙測與陣列控制</h3>
                  <div className="overflow-x-auto">
-                   <table className="w-full text-left text-sm text-slate-300">
-                     <thead className="bg-[#0B1120] text-blue-300 border-b border-blue-900/50">
+                   <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+                     <thead className="bg-slate-100 dark:bg-[#0B1120] text-blue-700 dark:text-blue-300 border-b border-blue-200 dark:border-blue-900/50">
                        <tr>
                          <th className="p-4 font-bold tracking-wider">學員識別碼</th>
                          <th className="p-4 font-bold tracking-wider w-24">選擇</th>
@@ -1130,44 +1159,44 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
                          <th className="p-4 font-bold tracking-wider text-right">覆寫控制</th>
                        </tr>
                      </thead>
-                     <tbody className="divide-y divide-blue-900/20">
+                     <tbody className="divide-y divide-blue-200 dark:divide-blue-900/20">
                        {participants.filter(p => !p.kicked).map(p => {
                          const isCorrect = p[`q_${session.currentQuestion}_choice`] === currentQ.correctAnswer;
                          return (
-                           <tr key={p.id} className="hover:bg-blue-900/10 transition-colors group">
-                             <td className="p-4 font-bold text-slate-100 flex items-center">
+                           <tr key={p.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group">
+                             <td className="p-4 font-bold text-slate-900 dark:text-slate-100 flex items-center">
                                <div className="w-2 h-2 rounded-full bg-green-500 mr-3 animate-pulse"></div>
                                {p.name}
                              </td>
                              <td className="p-4">
                                {p[`q_${session.currentQuestion}_choice`] ? (
-                                 <span className={`px-3 py-1 rounded-md text-sm font-black shadow-inner ${session.status === 'revealed' ? (isCorrect ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30') : 'bg-blue-900/40 border border-blue-500/30 text-blue-200'}`}>
+                                 <span className={`px-3 py-1 rounded-md text-sm font-black shadow-inner ${session.status === 'revealed' ? (isCorrect ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 border border-green-300 dark:border-green-500/30' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 border border-red-300 dark:border-red-500/30') : 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200'}`}>
                                    {p[`q_${session.currentQuestion}_choice`]}
                                  </span>
                                ) : (
-                                 <span className="text-slate-600 opacity-50">-</span>
+                                 <span className="text-slate-400 dark:text-slate-600 opacity-50">-</span>
                                )}
                              </td>
-                             <td className="p-4 break-words max-w-xs text-slate-400">
+                             <td className="p-4 break-words max-w-xs text-slate-600 dark:text-slate-400">
                                {p[`q_${session.currentQuestion}_text`] || <span className="italic opacity-30">尚未確認送出</span>}
                              </td>
                              <td className="p-4">
                                {p.locked ? (
-                                 <span className="text-orange-400 flex items-center text-xs font-bold"><Lock size={14} className="mr-1"/> 覆寫鎖定</span>
+                                 <span className="text-orange-500 dark:text-orange-400 flex items-center text-xs font-bold"><Lock size={14} className="mr-1"/> 覆寫鎖定</span>
                                ) : (
-                                 <span className="text-emerald-400 flex items-center text-xs font-bold"><CheckCircle2 size={14} className="mr-1"/> 正常傳輸</span>
+                                 <span className="text-emerald-500 dark:text-emerald-400 flex items-center text-xs font-bold"><CheckCircle2 size={14} className="mr-1"/> 正常傳輸</span>
                                )}
                              </td>
                              <td className="p-4 text-right space-x-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                {session.status === 'revealed' && isCorrect && (
-                                 <button onClick={() => rewardStudent(p.id)} className="p-2 inline-flex items-center rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/50 hover:scale-110 transition-all border border-yellow-500/30" title="發放虛擬獎勵 (觸發特效)">
+                                 <button onClick={() => rewardStudent(p.id)} className="p-2 inline-flex items-center rounded-lg bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-500/50 hover:scale-110 transition-all border border-yellow-300 dark:border-yellow-500/30" title="發放虛擬獎勵 (觸發特效)">
                                    <Gift size={16} />
                                  </button>
                                )}
-                               <button onClick={() => toggleLockStudent(p.id, p.locked)} className={`p-2 inline-flex items-center rounded-lg transition-all border ${p.locked ? 'bg-green-500/20 text-green-400 hover:bg-green-500/50 border-green-500/30 hover:scale-110' : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/50 border-orange-500/30 hover:scale-110'}`} title={p.locked ? "解除作答鎖定" : "強制暫停該員作答"}>
+                               <button onClick={() => toggleLockStudent(p.id, p.locked)} className={`p-2 inline-flex items-center rounded-lg transition-all border ${p.locked ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/50 border-green-300 dark:border-green-500/30 hover:scale-110' : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-500/50 border-orange-300 dark:border-orange-500/30 hover:scale-110'}`} title={p.locked ? "解除作答鎖定" : "強制暫停該員作答"}>
                                  {p.locked ? <Unlock size={16} /> : <Lock size={16} />}
                                </button>
-                               <button onClick={() => kickStudent(p.id, p.name)} className="p-2 inline-flex items-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/50 border border-red-500/30 hover:scale-110 transition-all" title="中斷連線 (踢出)">
+                               <button onClick={() => kickStudent(p.id, p.name)} className="p-2 inline-flex items-center rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/50 border border-red-300 dark:border-red-500/30 hover:scale-110 transition-all" title="中斷連線 (踢出)">
                                  <LogOut size={16} />
                                </button>
                              </td>
@@ -1193,8 +1222,8 @@ function TeacherDashboard({ db, appId, user, toggleTheme, isDark, onLogout }) {
          ) : (
            <div className="h-full flex flex-col items-center justify-center opacity-40">
              <ShieldAlert size={80} className="mb-6 text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)] animate-pulse" />
-             <h2 className="text-4xl font-black mb-3 tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">SYSTEM STANDBY</h2>
-             <p className="font-mono text-lg tracking-widest text-blue-300">請啟動主控程式以建立連線</p>
+             <h2 className="text-4xl font-black mb-3 tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">SYSTEM STANDBY</h2>
+             <p className="font-mono text-lg tracking-widest text-slate-700 dark:text-blue-300">請啟動主控程式以建立連線</p>
            </div>
          )}
       </div>
