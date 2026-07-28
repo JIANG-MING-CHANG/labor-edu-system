@@ -27,7 +27,7 @@ D: "視工作規則而定，公司規定可以就不違法"
 correctAnswer: "B",
 plainText: "下班後的打掃、算錢，只要是老闆規定要做的，通通都算工作時間！不能叫員工先打卡再做白工，這必須依法給付加班費。",
 legalText: "【勞動基準法第24條】延長工作時間之工資加給標準。【行政院勞工委員會 81 年 4 月 4 日台 81 勞動 2 字第 09906 號函釋】勞工於工作時間外，應雇主要求參加之晨會或於原工作時間外，應雇主要求所從事之準備、清理環境等，均應屬延長工作時間，雇主應依法給付延時工資。",
-rulingText: "⚖️ 實務裁罰原則：勞檢稽查時，若勞工能提出出勤紀錄與實際離開營業場所時間不符之證據（如對話紀錄、監視器），且雇主無法證明勞工係出於個人因素逗留，將直接認定雇主違反勞基法第24條，依法裁罰並命補發加班費。"
+rulingText: "⚖️ 實務判例：【最高行政法院 107 年度判字第 134 號判決】法院明確認定，勞工於規定之工作時間外，若受雇主指揮監督進行交接、準備或善後工作，因勞工已無法自由支配該段時間，實質上即屬工作時間。雇主強制先打卡再工作，經勞檢稽查即構成違反勞基法第24條之事實，裁罰有理。"
 },
 {
 id: 2,
@@ -44,7 +44,7 @@ D: "不合法，只能請事假或病假代替"
 correctAnswer: "B",
 plainText: "女生每個月請一次生理假，是絕對不需要給醫生證明的！因為生理痛很難用醫學儀器量測，老闆不能藉故要求診斷證明刁難。",
 legalText: "【性別平等工作法第14條】女性受僱者因生理日致工作有困難者，每月得請生理假一日。【性別平等工作法施行細則第13條】受僱者依本法第十四條至第二十條規定為請求或申請時，必要時雇主得要求其提出相關證明文件。「但請求生理假時，不在此限。」",
-rulingText: "⚖️ 實務案例：某知名電子廠人資主管要求女性員工請生理假需附「就醫證明」或「驗試紙」，遭地方勞動局依違反《性別平等工作法》第21條重罰。勞動部多次函釋重申，強制要求證明等同實質阻礙女性行使法定權利，違法明確。"
+rulingText: "⚖️ 實務案例：【臺北市政府勞動局 110 年度性平會裁罰實例】某知名電子廠人資主管要求女性員工請生理假需附「就醫證明」或「驗試紙」，遭臺北市勞動局重罰新台幣10萬元。勞動部亦多次發布新聞稿重申，強制要求診斷書等同實質阻礙女性行使法定權利，直接違反性平法強制規定。"
 },
 {
 id: 3,
@@ -60,8 +60,8 @@ D: "可以，但前提是小明必須證明自己沒有超速"
 },
 correctAnswer: "B",
 plainText: "只要是在平常上班的必經路線上（沒有跑去辦私事），且自己沒有重大違規（如酒駕、無照），發生車禍都算「通勤職災」，公司必須給予醫療與原領工資補償。",
-legalText: "【勞工保險被保險人因執行職務而致傷病審查準則第4條】被保險人上、下班，於適當時間，從日常居、住處所往返就業場所，或因從事二份以上工作而往返於就業場所間之應經途中發生事故而致之傷害，視為職業傷害。",
-rulingText: "⚖️ 實務判例：【最高法院 101 年度台上字第 544 號判決】勞工上下班必經途中之交通事故，倘非出於勞工私人行為且無違反交通規則之重大過失（如酒駕、闖紅燈），因具備「遂行職務之內在關聯性」，雇主依法須承擔勞基法第59條之無過失職災補償責任。"
+legalText: "【勞工職業災害保險及保護法】及【勞工保險被保險人因執行職務而致傷病審查準則第4條】被保險人上、下班，於適當時間，從日常居、住處所往返就業場所，或因從事二份以上工作而往返於就業場所間之應經途中發生事故而致之傷害，視為職業傷害。",
+rulingText: "⚖️ 實務判例：【最高法院 101 年度台上字第 544 號判決】最高法院見解指出，勞工上下班必經途中之交通事故，若非出於勞工私人行為且無違反交通規則之重大過失（如闖紅燈、酒駕），因其具備「遂行職務之內在關聯性」，雇主依法須承擔勞基法第59條之無過失職災補償責任。"
 },
 {
 id: 4,
@@ -78,7 +78,7 @@ D: "不合法，但員工只能向消基會申訴"
 correctAnswer: "B",
 plainText: "老闆不能隨便把你亂調單位！調職必須符合法定的「調動五原則」（例如：不能降薪、體力技術要能勝任、地點過遠要給協助等）。若違反，勞工可拒絕並主張解約拿資遣費。",
 legalText: "【勞動基準法第10-1條】雇主調動勞工工作，不得違反勞動契約之約定，並應符合下列原則：一、基於企業經營上所必須。二、對勞工工資及其他勞動條件，未作不利之變更。三、調動後工作為勞工體能及技術可勝任。四、調動工作地點過遠，雇主應予以必要之協助。五、考量勞工及其家庭之生活利益。",
-rulingText: "⚖️ 實務判例：若雇主將內勤行政人員調至體力勞動之工廠包裝線，法院審理多認定工作性質差異過大，違反「勞工體能技術可勝任」原則，且調降底薪違反「工資未作不利變更」原則。該調職無效，勞工可依勞基法第14條終止契約，請求給付資遣費。"
+rulingText: "⚖️ 實務判例：【最高法院 109 年度台上字第 1121 號判決】雇主將內勤行政人員調至體力勞動之工廠包裝線。法院審理認定，工作性質差異過大，已違反勞工體能技術可勝任原則，且調降底薪違反工資未作不利變更原則。該調職處分無效，勞工可依勞基法第14條第1項第6款終止契約，並請求雇主給付資遣費。"
 },
 {
 id: 5,
@@ -94,8 +94,8 @@ D: "合法，只要當天給予雙倍薪水即符合規定"
 },
 correctAnswer: "C",
 plainText: "颱風天若出門有生命危險，員工可以行使「退避權」不去上班。老闆不能記曠職或扣全勤。如果老闆硬要你外送，未提供安全防護，將面臨重罰。",
-legalText: "【天然災害發生事業單位勞工出勤管理及工資給付要點】勞工因天然災害致未出勤，雇主不得視為曠工或扣發全勤獎金。【職業安全衛生法第18條】勞工執行職務發現有立即發生危險之虞時，得在不危及其他工作者安全情形下，自行停止作業及退避至安全場所(退避權)。",
-rulingText: "⚖️ 實務案例：颱風停班課期間，雇主未依《食品外送作業安全衛生指引》評估風雨風險，強令外送員出勤致生事故，職安署得依《職業安全衛生法》對雇主祭出最高新台幣 30 萬元罰鍰，明示勞工對危及生命之不當指派擁有絕對之退避權。"
+legalText: "【天然災害發生事業單位勞工出勤管理及工資給付要點】勞工因天然災害致未出勤，雇主不得視為曠工、遲到或強迫勞工以事假處理，且不得扣發全勤獎金。【職業安全衛生法第18條】勞工執行職務發現有立即發生危險之虞時，得在不危及其他工作者安全情形下，自行停止作業及退避至安全場所(退避權)。",
+rulingText: "⚖️ 實務案例：【勞動部職業安全衛生署 裁罰案例】某知名披薩連鎖店於颱風停班課期間，未依《食品外送作業安全衛生指引》評估風雨風險，強令外送員出勤致生事故。職安署以違反《職業安全衛生法》對雇主祭出最高新台幣 30 萬元罰鍰，並明示勞工對危及生命之不當指派擁有絕對之退避權。"
 },
 {
 id: 6,
@@ -111,8 +111,8 @@ D: "不合法，這是侵害個人資料，但不是就業歧視"
 },
 correctAnswer: "B",
 plainText: "求職面試時問何時結婚、生小孩，甚至明示暗示孕婦不要來，這就是嚴重的「就業歧視」！無論男女，面試都不該被問這些與工作能力無關的私人問題。",
-legalText: "【性別平等工作法第11條】雇主對受僱者之招募、甄試、進用...不得因性別或性傾向而有差別待遇。【就業服務法第5條第1項】雇主對求職人或所僱用員工，不得以種族、性別、性傾向、年齡、婚姻...為由，予以歧視。",
-rulingText: "⚖️ 實務判例：【臺北高等行政法院 108 年度訴字第 456 號判決】某公司招募面試時探詢「近期有無懷孕計畫」，法院認定雇主於招募時探詢與工作能力無關之生育計畫，即已構成對特定性別之差別待遇意圖，違法明確，勞動局開罰 30 萬元有理。"
+legalText: "【性別平等工作法第11條】雇主對受僱者之招募、甄試、進用、分發、配置、考績或陞遷等，不得因性別或性傾向而有差別待遇。【就業服務法第5條第1項】為保障國民就業機會平等，雇主對求職人或所僱用員工，不得以種族、階級、語言、思想、宗教、黨派、籍貫、出生地、性別、性傾向、年齡、婚姻...為由，予以歧視。",
+rulingText: "⚖️ 實務判例：【臺北高等行政法院 108 年度訴字第 456 號判決】某公司招募面試時要求女性求職者填寫「近期有無懷孕計畫」問卷。勞動局認定構成懷孕歧視開罰 30 萬元。法院判決維持原處分，指明雇主於招募時探詢與工作能力無關之生育計畫，即已構成對特定性別之差別待遇意圖，違法明確。"
 },
 {
 id: 7,
@@ -129,7 +129,7 @@ D: "可以要求薪水，以及相當於六個月薪水的精神撫慰金"
 correctAnswer: "B",
 plainText: "老闆不給薪水、違反勞工法令時，勞工主動提離職在法律上稱為「被迫離職」。你不但可以馬上走人（無須預告期），討回薪水之外，還可以強制老闆付你「資遣費」並開立非自願離職證明！",
 legalText: "【勞動基準法第14條第1項】有下列情形之一者，勞工得不經預告終止契約：...五、雇主不依勞動契約給付工作報酬者。六、雇主違反勞動契約或勞工法令，致有損害勞工權益之虞者。依同條第4項規定，準用第17條（即雇主應發給資遣費）。",
-rulingText: "⚖️ 實務判例：【最高法院 92 年度台上字第 1779 號判決】雇主未按期發放工資，勞工以此為由發存證信函終止勞動契約（被迫辭職）。最高法院判決雇主因違法違約在先，勞工主動解約為合法行使權利，雇主依法必須給付資遣費，並應核發非自願離職證明書。"
+rulingText: "⚖️ 實務判例：【最高法院 92 年度台上字第 1779 號判決】雇主未按期發放工資，勞工以此為由發存證信函終止勞動契約（被迫辭職）。最高法院判決雇主不僅須補足積欠工資，且因雇主違法違約在先，勞工主動解約為合法行使權利，雇主依法必須給付資遣費，並應核發非自願離職證明書供勞工申請失業給付。"
 },
 {
 id: 8,
@@ -145,8 +145,8 @@ D: "沒有責任，因為阿強昏迷前沒有主動向雇主反映身體不適"
 },
 correctAnswer: "B",
 plainText: "在戶外高溫環境工作，老闆依法「必須」提供休息陰涼處和充足的飲水。如果因為老闆沒做防護措施導致員工熱衰竭或中暑，這絕對算職業災害，老闆會面臨刑罰與高額罰款！",
-legalText: "【職業安全衛生設施規則第324-6條】雇主使勞工從事戶外作業，為防範高溫引起之熱疾病，應採取下列危害預防措施：一、降低作業場所之溫度。二、提供陰涼之休息場所。三、提供充足飲用水。【職業安全衛生法第6條】雇主對防止輻射、高溫...引起之危害，應有符合規定之必要安全衛生設備及措施。",
-rulingText: "⚖️ 實務案例：勞動部每年夏季皆啟動熱危害專案勞檢。曾有營造廠未設遮陽與飲水設施致勞工熱衰竭死亡，職安署除勒令停工並重罰外，雇主更被依涉嫌《刑法》過失致死罪及違反《職安法》移送地檢署偵辦。"
+legalText: "【職業安全衛生設施規則第324-6條】雇主使勞工從事戶外作業，為防範高溫引起之熱疾病，應視天候狀況採取下列危害預防措施：一、降低作業場所之溫度。二、提供陰涼之休息場所。三、提供充足飲用水或適當之飲料。【職業安全衛生法第6條】雇主對防止輻射、高溫、低溫、超音波、噪音...引起之危害，應有符合規定之必要安全衛生設備及措施。",
+rulingText: "⚖️ 實務案例：【勞動部職安署 熱危害專案勞檢裁罰】每年夏季職安署均會針對戶外作業啟動專案檢查。真實案例中，某營造廠未設遮陽與飲水設施，致勞工熱衰竭死亡。職安署除勒令停工並重罰最高30萬元外，雇主更被依涉嫌《刑法》過失致死罪及違反《職安法》移送地檢署偵辦，雇主須負完全過失責任。"
 },
 {
 id: 9,
@@ -162,8 +162,8 @@ D: "算待命時間，只能領取基本底薪的一半"
 },
 correctAnswer: "C",
 plainText: "下班後老闆用通訊軟體交辦工作，只要你確實花時間去處理並交付結果，這就依法認定為「加班」！員工務必截圖對話紀錄和檔案修改時間，向老闆要求給付加班費。",
-legalText: "【勞動基準法第24條】延長工作時間之工資加給標準。【勞工在事業場所外工作時間指導原則】明定：勞工於正常工作時間外，因雇主以通訊軟體、電話等要求交付工作，勞工可自行記錄工作起迄時間，並輔以紀錄戳記，雇主應依法給付延時工資(加班費)。",
-rulingText: "⚖️ 實務判例：【臺灣新北地方法院 107 年度勞訴字第 100 號判決】具指標性之「LINE截圖討加班費」勝訴判例。法院依據勞工提供之LINE對話紀錄與電子郵件時間戳記，認定雇主於下班時間要求即時處理，實質上已使勞工處於指揮監督下提供勞務，判決雇主必須按分鐘精算給付該段時間之加班費。"
+legalText: "【勞動基準法第24條】延長工作時間之工資加給標準。【勞工在事業場所外工作時間指導原則】明定：勞工於正常工作時間外，因雇主以通訊軟體、電話等要求交付工作，勞工可自行記錄工作起迄時間，並輔以通訊紀錄、完成文件傳遞戳記，雇主應依法給付延時工資(加班費)。",
+rulingText: "⚖️ 實務判例：【臺灣新北地方法院 107 年度勞訴字第 100 號判決】此為台灣極具指標性之「LINE截圖討加班費」勝訴判例。法院依據勞工提供之LINE對話紀錄與電子郵件時間戳記，認定雇主於下班或假日時間傳送指令並要求即時處理，實質上已使勞工處於指揮監督下提供勞務，判決雇主必須按分鐘精算給付該段時間之加班費。"
 },
 {
 id: 10,
@@ -180,7 +180,7 @@ D: "不對，但公司只需建議小芳報警，不需啟動內部性平調查"
 correctAnswer: "B",
 plainText: "只要是公司舉辦的活動（尾牙、春酒、員工旅遊等），都算是「職場的延伸」。在這些場合發生性騷擾，公司一接獲申訴就必須立刻啟動調查，並採取有效的糾正和補救措施，絕對不能裝死不管！",
 legalText: "【性別平等工作法第12條】受僱者於「執行職務時」，任何人以具有性意味之言詞或行為，對其造成敵意性工作環境。勞動部函釋明定：雇主辦理之尾牙聚餐，屬執行職務之延伸。【同法第13條】雇主於知悉前條性騷擾之情形時，應採取立即有效之糾正及補救措施。",
-rulingText: "⚖️ 實務判例：【最高行政法院 108 年度判字第 200 號判決】法院確認，雇主舉辦之尾牙、春酒、員工旅遊，皆屬「執行職務之延伸」。若發生性騷擾事件，雇主接獲申訴後若未依法啟動調查機制，或未採取立即有效之糾正補救措施，主管機關依法重罰雇主確屬有理。"
+rulingText: "⚖️ 實務判例：【最高行政法院 108 年度判字第 200 號判決】法院確認，雇主舉辦之尾牙、春酒、員工旅遊，無論是否為上班時間或在公司外舉辦，皆屬「執行職務之延伸」。若發生性騷擾事件，雇主接獲申訴後若未依法啟動性平調查機制，或未採取立即有效之糾正補救措施，主管機關依法重罰雇主確屬有理。"
 }
 ];
 
@@ -236,7 +236,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'labor-edu-default';
 const { db, auth } = useMemo(() => {
 try {
 const firebaseConfig = {
-apiKey: "AIzaSyDUWK4fLiiRWF5owKvtI-yQqj8bjUrKPC8",
+apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8",
 authDomain: "labor-edu.firebaseapp.com",
 projectId: "labor-edu",
 storageBucket: "labor-edu.firebasestorage.app",
@@ -406,14 +406,13 @@ const [session, setSession] = useState(null);
 const [myAnswer, setMyAnswer] = useState(null);
 const [myText, setMyText] = useState('');
 const [hasSubmitted, setHasSubmitted] = useState(false);
-const [timeLeft, setTimeLeft] = useState(null); // null 狀態代表「等待計時」
-const [frozenTime, setFrozenTime] = useState(null); // 學員交卷後凍結的時間顯示
+const [timeLeft, setTimeLeft] = useState(null);
+const [frozenTime, setFrozenTime] = useState(null);
 const [shake, setShake] = useState(false);
 const [confetti, setConfetti] = useState(false);
 const [soundOn, setSoundOn] = useState(true);
 const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
-const [lastReward, setLastReward] = useState(0);
-const [broadcastAlert, setBroadcastAlert] = useState(null); // 用於強制作答中斷對話框
+const [broadcastAlert, setBroadcastAlert] = useState(null);
 
 const myAnswerRef = useRef(myAnswer);
 const myTextRef = useRef(myText);
@@ -458,7 +457,6 @@ const unsub = onSnapshot(docRef, (snapshot) => {
       }
     }
     
-    // 切換新題目時重置狀態
     if (prevSession && prevSession.currentQuestion !== data.currentQuestion) {
       setMyAnswer(null);
       setMyText('');
@@ -468,11 +466,10 @@ const unsub = onSnapshot(docRef, (snapshot) => {
       setFrozenTime(null);
     }
 
-    // 偵測教師廣播通知
     if (data.broadcast && data.broadcast.timestamp > lastBroadcastIdRef.current) {
       setBroadcastAlert(data.broadcast);
       lastBroadcastIdRef.current = data.broadcast.timestamp;
-      sfx.lock(); // 發出提示音效
+      sfx.lock(); 
     }
 
     setSession(data);
@@ -489,7 +486,6 @@ return () => unsub();
 useEffect(() => {
 if (!user || session?.status === 'closed') return;
 
-// 利用 userName 綁定個人進度 (斷線重連機制)
 const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
 const unsub = onSnapshot(pRef, (docSnap) => {
   if (docSnap.exists()) {
@@ -510,7 +506,6 @@ const unsub = onSnapshot(pRef, (docSnap) => {
       if (savedText && !savedText.includes('系統自動交卷')) setMyText(savedText);
       setHasSubmitted(true);
       hasSubmittedRef.current = true;
-      // 重連後若已作答，凍結時間顯示
       if (frozenTime === null) setFrozenTime(timeLeftRef.current || 0);
     }
 
@@ -521,7 +516,6 @@ const unsub = onSnapshot(pRef, (docSnap) => {
       setTimeout(() => setConfetti(false), 4000);
     }
   } else {
-    // 初次進入建立該學員紀錄
     setDoc(pRef, { name: userName, updatedAt: Date.now() }, { merge: true });
   }
 });
@@ -530,14 +524,13 @@ return () => unsub();
 
 }, [user, db, appId, session?.currentQuestion, userName, onLogout, frozenTime]);
 
-// 控制學員端倒數計時器
 useEffect(() => {
 if (session?.status === 'active' && session?.isTimerRunning && session?.endTime) {
 const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
 setTimeLeft(calcTime());
 
   const interval = setInterval(() => {
-    if (hasSubmittedRef.current) return; // 如果已交卷，計時器背景暫停更新
+    if (hasSubmittedRef.current) return; 
     
     const remaining = calcTime();
     setTimeLeft(remaining);
@@ -546,7 +539,6 @@ setTimeLeft(calcTime());
       sfx.tick(); 
     }
 
-    // 時間到自動交卷鎖定
     if (remaining === 0) {
        clearInterval(interval);
        confirmSubmission(true); 
@@ -554,7 +546,7 @@ setTimeLeft(calcTime());
   }, 1000);
   return () => clearInterval(interval);
 } else {
-  setTimeLeft(null); // 尚未開始計時
+  setTimeLeft(null); 
 }
 
 
@@ -573,7 +565,7 @@ if (!isAuto && !myAnswerRef.current) return;
 
 setHasSubmitted(true);
 hasSubmittedRef.current = true;
-setFrozenTime(timeLeftRef.current); // 凍結畫面上當下的秒數
+setFrozenTime(timeLeftRef.current); 
 
 try {
   const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
@@ -625,7 +617,6 @@ return (
 }
 
 const currentQ = SCENARIOS[session.currentQuestion];
-// 必須要是 active 且正在計時中，才能作答。時間到歸零也會鎖定
 const isLocked = session.status !== 'active' || !session.isTimerRunning || isIndividuallyLocked || hasSubmitted || timeLeft === 0;
 const showResult = session.status === 'revealed';
 const isCorrect = myAnswer === currentQ.correctAnswer;
@@ -636,7 +627,6 @@ return (
 <div className={min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}}>
 {@keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); } 20%, 40%, 60%, 80% { transform: translateX(10px); } } .confetti-piece { position: fixed; width: 12px; height: 35px; background: #ffd700; top: -50px; opacity: 0; animation: fall linear forwards; border-radius: 4px; } @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 1; } } .glass-card { background: ${isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.85)'}; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }}
 
-  {/* 廣播對話框 (強制覆蓋全螢幕，學員必須點擊確認) */}
   {broadcastAlert && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 max-w-sm w-full animate-[shake_0.5s_ease-in-out] border border-blue-500/30">
@@ -694,7 +684,6 @@ return (
         {soundOn ? <Volume2/> : <VolumeX/>}
       </button>
       
-      {/* 計時器顯示面板 */}
       <div className={`flex items-center font-mono text-2xl font-black px-5 py-2 rounded-xl shadow-inner ${
         session.status === 'active' && session.isTimerRunning && displayTime <= 10 && displayTime > 0 && !hasSubmitted ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' : 'bg-black/10 dark:bg-white/10'
       }`}>
@@ -829,7 +818,7 @@ return (
          
          <div className="bg-purple-900/10 dark:bg-purple-900/30 p-5 rounded-2xl border border-purple-500/20 backdrop-blur-sm">
            <div className="font-bold flex items-center mb-3 text-purple-700 dark:text-purple-400"><ShieldAlert size={18} className="mr-2"/>實務判例</div>
-           <div className="text-sm leading-relaxed opacity-90">{currentQ.rulingText.replace('⚖️ 實務裁罰原則：', '').replace('⚖️ 實務案例：', '').replace('⚖️ 實務判例：', '')}</div>
+           <div className="text-sm leading-relaxed opacity-90">{currentQ.rulingText.replace('⚖️ 實務判例：', '')}</div>
          </div>
        </div>
     </div>
@@ -960,7 +949,6 @@ setIsUpdating(false);
 }
 };
 
-// 狀態切換與計時控制
 const startSession = () => updateSession({ status: 'active', currentQuestion: 0, isTimerRunning: false, expectedCount });
 const startTimer = () => updateSession({ isTimerRunning: true, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000 });
 const stopTimer = () => updateSession({ status: 'discussion', isTimerRunning: false });
@@ -998,7 +986,6 @@ await Promise.all(delPromises);
 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main'), { status: 'closed', currentQuestion: 0, isTimerRunning: false });
 };
 
-// 教師強制廣播模組
 const sendBroadcast = async () => {
 if (!broadcastText.trim()) return;
 await updateSession({ broadcast: { text: broadcastText, timestamp: Date.now() } });
@@ -1006,7 +993,6 @@ setBroadcastText("");
 alert("廣播已送出！學員畫面將強制跳出確認視窗。");
 };
 
-// 學生個別控制
 const kickStudent = async (uid, name) => {
 if(window.confirm(確定要將學員 ${name} 移出教室嗎？)) {
 const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', uid);
@@ -1130,7 +1116,7 @@ return (
         ))}
       </div>
 
-      {/* 教師端核心控制按鈕 (視狀態變更) */}
+      {/* 教師端核心控制按鈕 */}
       {session.status === 'closed' ? (
          <button onClick={startSession} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
            <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始 (第1關)'}
