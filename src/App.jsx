@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 const SCENARIOS = [
- {
+  {
     id: 1,
     category: "工時",
     title: "手搖飲店的隱形加班",
@@ -213,9 +213,9 @@ class AudioEngine {
   tick() { this.playTone(800, 'sine', 0.1, 0.05); }
   lock() { this.playTone(150, 'square', 0.2, 0.2); setTimeout(()=>this.playTone(100, 'square', 0.2, 0.2), 100); }
   success() {
-    this.playTone(523.25, 'sine', 0.1, 0.1); 
-    setTimeout(()=>this.playTone(659.25, 'sine', 0.1, 0.1), 100); 
-    setTimeout(()=>this.playTone(783.99, 'sine', 0.3, 0.1), 200); 
+    this.playTone(523.25, 'sine', 0.1, 0.1); // C5
+    setTimeout(()=>this.playTone(659.25, 'sine', 0.1, 0.1), 100); // E5
+    setTimeout(()=>this.playTone(783.99, 'sine', 0.3, 0.1), 200); // G5
   }
   fail() {
     this.playTone(300, 'sawtooth', 0.3, 0.1);
@@ -227,7 +227,7 @@ const sfx = new AudioEngine();
 
 export default function LaborEduApp() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null); 
+  const [role, setRole] = useState(null); // 'teacher' or 'student'
   const [userName, setUserName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   
@@ -236,7 +236,7 @@ export default function LaborEduApp() {
   const { db, auth } = useMemo(() => {
     try {
       const firebaseConfig = {
-        apiKey: "AIzaSyDUWK4fLiiRWF5owKvtI-yQqj8bjUrKPC8", 
+        apiKey: "AIzaSyDUWK4fLiiRWF5oWKvtI-yQqj8bjUrKPC8",
         authDomain: "labor-edu.firebaseapp.com",
         projectId: "labor-edu",
         storageBucket: "labor-edu.firebasestorage.app",
@@ -245,8 +245,7 @@ export default function LaborEduApp() {
         measurementId: "G-6CCC25C7T0"
       };
       if (!firebaseConfig) throw new Error("Firebase config missing");
-      // 確保不重複初始化
-      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
       return { db: getFirestore(app), auth: getAuth(app) };
     } catch (e) {
       console.error("Firebase init error:", e);
@@ -259,7 +258,14 @@ export default function LaborEduApp() {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
+          try {
+            // 嘗試使用平台金鑰登入
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (tokenErr) {
+            // 如果金鑰不匹配 (換成自訂專案時)，自動改用匿名登入
+            console.warn("自訂金鑰不匹配，自動切換為匿名登入...");
+            await signInAnonymously(auth);
+          }
         } else {
           await signInAnonymously(auth);
         }
@@ -279,12 +285,10 @@ export default function LaborEduApp() {
     setUserName('');
   };
 
-  const appClassName = `min-h-screen w-full transition-colors duration-300 font-sans ${
-    isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-50 text-slate-900'
-  }`;
+  const appClassName = `min-h-screen w-full transition-colors duration-300 font-sans ${isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-50 text-slate-900'}`;
 
   if (!db || !auth) {
-    return <div className="p-10 text-red-500">系統初始化中，或缺乏後端設定。</div>;
+    return <div className="p-10 text-red-500 font-bold">系統初始化中，或 Firebase 連線失敗，請檢查 API 金鑰。</div>;
   }
 
   return (
@@ -411,16 +415,20 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [soundOn, setSoundOn] = useState(true);
   const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
   const [lastReward, setLastReward] = useState(0);
+  
+  // 廣播對話框狀態
+  const [broadcastMessage, setBroadcastMessage] = useState(null);
 
-  // 確保 setInterval 裡面能抓到最新的 State
+  // Refs 防止自動交卷抓不到最新值
   const myAnswerRef = useRef(myAnswer);
   const myTextRef = useRef(myText);
   const hasSubmittedRef = useRef(hasSubmitted);
-
+  
   useEffect(() => { myAnswerRef.current = myAnswer; }, [myAnswer]);
   useEffect(() => { myTextRef.current = myText; }, [myText]);
   useEffect(() => { hasSubmittedRef.current = hasSubmitted; }, [hasSubmitted]);
 
+  // 監聽 Session 主要狀態
   useEffect(() => {
     if (!user) return;
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
@@ -429,10 +437,16 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
+        // 處理全體廣播通知
+        if (data.teacherMessage && data.teacherMessage.id !== session?.teacherMessage?.id) {
+           setBroadcastMessage(data.teacherMessage.text);
+           sfx.tick();
+        }
+
         if (session && session.status !== data.status) {
           if (data.status === 'revealed') {
              const correct = SCENARIOS[data.currentQuestion]?.correctAnswer;
-             if (myAnswer === correct) {
+             if (myAnswerRef.current === correct) {
                sfx.success();
                setConfetti(true);
                setTimeout(()=>setConfetti(false), 4000); 
@@ -447,6 +461,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           }
         }
         
+        // 換題時重置
         if (session && session.currentQuestion !== data.currentQuestion) {
           setMyAnswer(null);
           setMyText('');
@@ -460,12 +475,12 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       }
     }, (err) => console.error(err));
     return () => unsub();
-  }, [user, db, appId, session, myAnswer]);
+  }, [user, db, appId, session]); // 移除 myAnswer 依賴，避免無限迴圈
 
+  // 監聽個人狀態 (中途離線重連、獎勵、踢出)
   useEffect(() => {
     if (!user || !session || session.status === 'closed') return;
     
-    // 使用 userName 作為文檔 ID，支援斷線重連機制
     const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
     const unsub = onSnapshot(pRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -477,10 +492,9 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
         }
         setIsIndividuallyLocked(!!data.locked);
 
-        // 自動恢復之前的作答狀態 (處理重新整理頁面)
+        // 如果已有該題紀錄，自動恢復作答狀態 (處理中途離線重連)
         const savedAns = data[`q_${session.currentQuestion}_choice`];
         const savedText = data[`q_${session.currentQuestion}_text`];
-        
         if (savedAns && !hasSubmittedRef.current) {
           if (savedAns !== '未作答') setMyAnswer(savedAns);
           if (savedText && savedText !== '時間到系統自動交卷') setMyText(savedText);
@@ -494,16 +508,20 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           setTimeout(() => setConfetti(false), 4000);
         }
       } else {
-        // 初次進入建立紀錄
+        // 第一次進入，建立基本資料
         setDoc(pRef, { name: userName, updatedAt: Date.now() }, { merge: true });
       }
     });
     return () => unsub();
-  }, [user, db, appId, session, lastReward, onLogout, userName]);
+  }, [user, db, appId, session?.currentQuestion, session?.status, lastReward, onLogout, userName]);
 
+  // 倒數計時與自動交卷核心邏輯
   useEffect(() => {
     if (session?.status === 'active' && session?.endTime) {
       const interval = setInterval(() => {
+        // 如果已經交卷，凍結時間，不再更新 timeLeft
+        if (hasSubmittedRef.current) return;
+
         const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
         setTimeLeft(remaining);
         
@@ -511,15 +529,17 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           sfx.tick(); 
         }
 
-        // 時間到自動交卷
-        if (remaining === 0 && !hasSubmittedRef.current) {
-           confirmSubmission(true); 
+        // 時間到，觸發自動交卷
+        if (remaining === 0) {
+           if (!hasSubmittedRef.current) {
+             confirmSubmission(true);
+           }
            clearInterval(interval);
         }
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [session]);
+  }, [session?.status, session?.endTime]);
 
   const selectOption = (choice) => {
     if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked) return;
@@ -527,23 +547,30 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   };
 
   const confirmSubmission = async (isAuto = false) => {
-    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked || !user) return;
-    // 手動送出需有答案，自動送出可為空
-    if (!isAuto && !myAnswerRef.current) return; 
+    if (session?.status !== 'active' || hasSubmittedRef.current || isIndividuallyLocked) return;
+    
+    // 如果是手動送出，但沒選答案，不給送出。如果是自動交卷，沒選就當作未作答。
+    if (!isAuto && !myAnswerRef.current) return;
 
     setHasSubmitted(true);
+    hasSubmittedRef.current = true; // 立即同步 Ref，防止 interval 再次觸發
     
+    const finalChoice = myAnswerRef.current || '未作答';
+    const finalText = myTextRef.current || (isAuto ? '時間到系統自動交卷' : '');
+
     try {
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
       await setDoc(pRef, {
         name: userName,
-        [`q_${session.currentQuestion}_choice`]: myAnswerRef.current || '未作答',
-        [`q_${session.currentQuestion}_text`]: myTextRef.current || (isAuto ? '時間到系統自動交卷' : ''),
+        [`q_${session.currentQuestion}_choice`]: finalChoice,
+        [`q_${session.currentQuestion}_text`]: finalText,
         updatedAt: Date.now()
       }, { merge: true });
     } catch(e) {
       console.error("Save error:", e);
       alert("儲存失敗，請檢查網路連線。");
+      setHasSubmitted(false);
+      hasSubmittedRef.current = false;
     }
   };
 
@@ -607,21 +634,25 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
         }
       `}</style>
       
+      {/* 強制廣播對話框 */}
+      {broadcastMessage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+           <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border-t-8 border-blue-500 animate-[shake_0.5s_ease-in-out]">
+              <MessageSquare className="mx-auto text-blue-500 mb-4 animate-pulse" size={56} />
+              <h3 className="text-2xl font-black mb-4 text-slate-900 dark:text-white tracking-widest">講師廣播</h3>
+              <p className="text-lg mb-8 text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{broadcastMessage}</p>
+              <button onClick={() => setBroadcastMessage(null)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl w-full shadow-lg transition-transform hover:scale-105">
+                我已收到 (確認)
+              </button>
+           </div>
+        </div>
+      )}
+
       <div className="fixed top-4 right-16 z-50 print:hidden">
          <button onClick={onLogout} className="p-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 transition-all font-bold flex items-center shadow-lg backdrop-blur-sm border border-red-500/20">
             <LogOut size={18} className="mr-2"/> 離開
          </button>
       </div>
-
-      {session.teacherMessage && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.5)] border border-white/20 animate-[shake_0.5s_ease-in-out]">
-          <div className="flex items-center font-bold text-lg">
-            <MessageSquare className="mr-3 animate-pulse" size={24} />
-            👨‍🏫 講師廣播
-          </div>
-          <p className="mt-1 ml-9">{session.teacherMessage}</p>
-        </div>
-      )}
 
       {confetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -654,11 +685,20 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           <button onClick={toggleSound} className="opacity-60 hover:opacity-100 hover:scale-110 transition-transform p-2 bg-slate-500/10 rounded-full">
             {soundOn ? <Volume2/> : <VolumeX/>}
           </button>
-          <div className={`flex items-center font-mono text-2xl font-black px-5 py-2 rounded-xl shadow-inner ${
-            timeLeft <= 10 && !isLocked && session.status === 'active' ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' : 'bg-black/10 dark:bg-white/10'
+          
+          {/* 計時器顯示區 */}
+          <div className={`flex items-center font-mono text-xl md:text-2xl font-black px-4 py-2 rounded-xl shadow-inner ${
+            session.status === 'ready' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/50' :
+            (timeLeft <= 10 && !isLocked && session.status === 'active' ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' : 'bg-black/10 dark:bg-white/10')
           }`}>
             <Clock className="mr-2" size={20} />
-            {session.status !== 'active' ? '00:00' : `${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}`}
+            {session.status === 'ready' ? (
+              <span className="text-sm md:text-lg">等待計時</span>
+            ) : session.status !== 'active' && !hasSubmitted ? (
+              '00:00'
+            ) : (
+              `${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}`
+            )}
           </div>
         </div>
       </div>
@@ -742,9 +782,9 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           
           <textarea 
             disabled={isLocked}
-            className="w-full p-4 rounded-xl bg-black/5 dark:bg-black/40 border border-slate-300/50 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none mb-4 transition-all"
+            className="w-full p-4 rounded-xl bg-black/5 dark:bg-black/40 border border-slate-300/50 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none mb-4 transition-all disabled:opacity-50"
             rows="3"
-            placeholder="輸入您的觀點或法理依據..."
+            placeholder={isLocked ? "目前無法編輯觀點..." : "輸入您的觀點或法理依據..."}
             value={myText}
             onChange={(e) => setMyText(e.target.value)}
           />
@@ -791,14 +831,13 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       )}
     </div>
   );
-} // <-- 這個重要括號就是原本遺漏的，導致了 Vercel 編譯失敗
+}
 
 function StudentResultView({ db, appId, user, userName, onLogout }) {
   const [scores, setScores] = useState([]);
   
   useEffect(() => {
     const fetchScores = async () => {
-      // 這裡也同步改為使用 userName 讀取雷達圖分數
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
       const unsub = onSnapshot(pRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -823,13 +862,11 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
       return () => unsub();
     };
     fetchScores();
-  }, [user, db, appId, userName]);
-
-  const handlePrint = () => window.print();
+  }, [userName, db, appId]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
-       <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center print:shadow-none print:border-none mt-12 md:mt-0">
+       <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center mt-12 md:mt-0">
           <h2 className="text-3xl font-extrabold mb-2">訓練完成！</h2>
           <p className="text-lg opacity-60 mb-8">{userName} 的專屬勞動意識雷達圖</p>
           
@@ -844,29 +881,25 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
              {scores.map(s => (
-               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                   <div className="text-sm opacity-60">{s.subject}</div>
                   <div className="text-2xl font-bold text-blue-500">{s.A}%</div>
                </div>
              ))}
           </div>
-
-          <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all flex items-center justify-center mx-auto print:hidden">
-            <FileDown className="mr-2" /> 匯出報告 (PDF)
-          </button>
        </div>
     </div>
   );
 }
 
 function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
-  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, teacherMessage: '' });
+  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0 });
   const [participants, setParticipants] = useState([]);
   const [timeLimit, setTimeLimit] = useState(5); 
-  const [expectedCount, setExpectedCount] = useState(0); 
-  const [teacherMessage, setTeacherMessage] = useState(""); 
+  const [expectedCount, setExpectedCount] = useState(0);
+  const [teacherMessage, setTeacherMessage] = useState("");
   const [dbError, setDbError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -875,10 +908,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
     const unsub = onSnapshot(sessionRef, (snapshot) => {
       if (snapshot.exists()) {
-        const data = snapshot.data();
-        setSession(data);
-        if (data.expectedCount !== undefined) setExpectedCount(data.expectedCount);
-        if (data.teacherMessage !== undefined) setTeacherMessage(data.teacherMessage);
+        setSession(snapshot.data());
       } else {
         setSession({ status: 'closed', currentQuestion: 0 });
       }
@@ -908,7 +938,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     } catch (error) {
       console.error("更新失敗:", error);
       if (error.message === "timeout") {
-        setDbError("連線逾時！請至 Firebase 建立「Firestore Database」(注意：非 Realtime Database)。");
+        setDbError("連線逾時！請至 Firebase 建立「Firestore Database」。");
       } else {
         setDbError("權限不足！請至 Firestore Database 的「規則」修改為 allow read, write: if true;");
       }
@@ -917,14 +947,15 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     }
   };
 
-  const startSession = () => updateSession({ status: 'active', currentQuestion: 0, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+  const startSession = () => updateSession({ status: 'ready', currentQuestion: 0, expectedCount });
+  const startTimer = () => updateSession({ status: 'active', endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000 });
   
   const nextQuestion = () => {
     const nextIdx = session.currentQuestion + 1;
     if (nextIdx >= SCENARIOS.length) {
       updateSession({ status: 'finished' });
     } else {
-      updateSession({ status: 'active', currentQuestion: nextIdx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+      updateSession({ status: 'ready', currentQuestion: nextIdx });
     }
   };
 
@@ -936,7 +967,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
       : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間將依據設定重新計算。`;
       
     if (window.confirm(msg)) {
-      updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+      updateSession({ status: 'ready', currentQuestion: idx });
     }
   };
 
@@ -969,9 +1000,11 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     await setDoc(pRef, { rewardTrigger: Date.now() }, { merge: true });
   };
 
-  const sendTeacherMessage = () => {
-    updateSession({ teacherMessage });
-    alert("廣播訊息已發送至學員畫面！");
+  const sendTeacherMessage = async () => {
+    if (!teacherMessage.trim()) return;
+    // 非同步寫入，不再使用 alert 阻擋 UI
+    await updateSession({ teacherMessage: { text: teacherMessage, id: Date.now() } });
+    setTeacherMessage(''); // 送出後清空欄位
   };
 
   const currentQ = SCENARIOS[session.currentQuestion] || SCENARIOS[0];
@@ -1028,7 +1061,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
           <div className="cyber-panel p-4 rounded-xl space-y-4">
             <div>
-              <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><Users size={16} className="mr-2"/>設定學員總數 (人)</label>
+              <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><Users size={16} className="mr-2"/>設定預期學員數 (人)</label>
               <input 
                 type="number" 
                 min="0"
@@ -1054,20 +1087,17 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
             </div>
           </div>
 
-          <div className="cyber-panel p-4 rounded-xl">
-            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息</label>
+          <div className="cyber-panel p-4 rounded-xl border-l-4 border-l-blue-500">
+            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息 (強制對話框)</label>
             <textarea
               value={teacherMessage}
               onChange={(e) => setTeacherMessage(e.target.value)}
-              rows="2"
-              placeholder="輸入要推播給學員的提醒或引導..."
+              rows="3"
+              placeholder="輸入要強制推播給學員的訊息..."
               className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
             />
-            <button onClick={sendTeacherMessage} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
-              發送廣播
-            </button>
-            <button onClick={() => { setTeacherMessage(''); updateSession({ teacherMessage: '' }); }} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm">
-              清除廣播
+            <button onClick={sendTeacherMessage} disabled={isUpdating || !teacherMessage.trim()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50 shadow-md hover:shadow-lg">
+              發送廣播 (觸發學員視窗)
             </button>
           </div>
 
@@ -1075,7 +1105,6 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
-          {/* Mission Grid */}
           <div className="grid grid-cols-5 gap-2 mb-6">
             {SCENARIOS.map((_, idx) => (
               <button
@@ -1100,6 +1129,12 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
              </button>
           ) : (
             <>
+              {session.status === 'ready' && (
+                <button onClick={startTimer} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed animate-pulse">
+                  <Play className="mr-2" size={20}/> {isUpdating ? '處理中...' : '▶️ 開始計時 (開放作答)'}
+                </button>
+              )}
+
               {session.status === 'active' && (
                 <button onClick={stopTimer} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
                   <Square className="mr-2" size={20}/> {isUpdating ? '處理中...' : '強制停止作答 (進入討論)'}
@@ -1114,7 +1149,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
               {session.status === 'revealed' && (
                 <button onClick={nextQuestion} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題'}
+                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一關 (等待計時)'}
                 </button>
               )}
             </>
@@ -1140,7 +1175,6 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
              
              {/* Top Row: Chart & Stats */}
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Live Chart */}
                 <div className="lg:col-span-2 cyber-panel rounded-3xl p-6 shadow-2xl">
                    <div className="flex justify-between items-center mb-6 cyber-border pb-4">
                      <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
@@ -1169,15 +1203,21 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                    </div>
                 </div>
 
-                {/* Phase Indicator */}
                 <div className="cyber-panel rounded-3xl p-6 shadow-2xl flex flex-col justify-center relative overflow-hidden">
-                   <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none ${session.status === 'active' ? 'bg-blue-500' : session.status === 'discussion' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                   <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none ${session.status === 'active' ? 'bg-blue-500' : session.status === 'ready' ? 'bg-indigo-500' : session.status === 'discussion' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
                    
+                   {session.status === 'ready' && (
+                     <div className="text-center text-indigo-600 dark:text-indigo-300 relative z-10">
+                       <ShieldAlert size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-pulse" />
+                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">等待計時開始</h4>
+                       <p className="text-sm opacity-80 text-indigo-700 dark:text-indigo-200">學員已載入題目，請點擊左側「開始計時」發送作答指令。</p>
+                     </div>
+                   )}
                    {session.status === 'active' && (
                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
-                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
+                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">計時器運轉中，時間歸零將自動強制收卷。</p>
                      </div>
                    )}
                    {session.status === 'discussion' && (
@@ -1301,7 +1341,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
            <div className="h-full flex flex-col items-center justify-center opacity-40">
              <ShieldAlert size={80} className="mb-6 text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)] animate-pulse" />
              <h2 className="text-4xl font-black mb-3 tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">SYSTEM STANDBY</h2>
-             <p className="font-mono text-lg tracking-widest text-slate-700 dark:text-blue-300">請啟動主控程式以建立連線</p>
+             <p className="font-mono text-lg tracking-widest text-slate-700 dark:text-blue-300 font-bold bg-white/20 dark:bg-black/20 px-6 py-2 rounded-full border border-slate-300/50 dark:border-slate-700/50">請在左下角點擊「開放登入並開始」以建立連線</p>
            </div>
          )}
       </div>
