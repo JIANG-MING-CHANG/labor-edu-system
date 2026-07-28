@@ -1,15 +1,31 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
 } from 'recharts';
 import { 
   Moon, Sun, Clock, Users, ShieldAlert, Scale, LogIn, Lock, 
-  Play, Square, PieChart, FileDown, CheckCircle2, XCircle, Volume2, VolumeX, MessageSquare, LogOut, Unlock, Gift
+  Play, Square, PieChart, FileDown, CheckCircle2, XCircle, Volume2, VolumeX, MessageSquare, LogOut, Unlock, Gift, BellRing
 } from 'lucide-react';
+
+// Firebase configuration MUST be initialized outside the component to prevent re-initialization issues.
+const firebaseConfig = {
+  apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
+  authDomain: "labor-edu.firebaseapp.com",
+  projectId: "labor-edu",
+  storageBucket: "labor-edu.firebasestorage.app",
+  messagingSenderId: "643910144514",
+  appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+  measurementId: "G-6CCC25C7T0"
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+const globalAppId = 'labor-edu-system'; // Using a stable app ID for this project
 
 const SCENARIOS = [
   {
@@ -199,16 +215,18 @@ class AudioEngine {
   }
   playTone(freq, type, duration, vol=0.1) {
     if (!this.ctx || !this.soundEnabled) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
+    try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    } catch(e) { console.warn("Audio error", e) }
   }
   tick() { this.playTone(800, 'sine', 0.1, 0.05); }
   lock() { this.playTone(150, 'square', 0.2, 0.2); setTimeout(()=>this.playTone(100, 'square', 0.2, 0.2), 100); }
@@ -221,6 +239,10 @@ class AudioEngine {
     this.playTone(300, 'sawtooth', 0.3, 0.1);
     setTimeout(()=>this.playTone(250, 'sawtooth', 0.4, 0.1), 150);
   }
+  notify() {
+    this.playTone(880, 'sine', 0.1, 0.1);
+    setTimeout(()=>this.playTone(1760, 'sine', 0.2, 0.1), 100);
+  }
   toggle() { this.soundEnabled = !this.soundEnabled; return this.soundEnabled;}
 }
 const sfx = new AudioEngine();
@@ -230,32 +252,9 @@ export default function LaborEduApp() {
   const [role, setRole] = useState(null); 
   const [userName, setUserName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'labor-edu-default';
-  
-  const { db, auth } = useMemo(() => {
-    try {
-      const firebaseConfig = {
-        apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
-        authDomain: "labor-edu.firebaseapp.com",
-        projectId: "labor-edu",
-        storageBucket: "labor-edu.firebasestorage.app",
-        messagingSenderId: "643910144514",
-        appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
-        measurementId: "G-6CCC25C7T0"
-      };
-      if (!firebaseConfig) throw new Error("Firebase config missing");
-      // 確保不重複初始化
-      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-      return { db: getFirestore(app), auth: getAuth(app) };
-    } catch (e) {
-      console.error("Firebase init error:", e);
-      return { db: null, auth: null };
-    }
-  }, []);
 
+  // Authentication Effect
   useEffect(() => {
-    if (!auth) return;
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -270,7 +269,7 @@ export default function LaborEduApp() {
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
-  }, [auth]);
+  }, []);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -282,10 +281,6 @@ export default function LaborEduApp() {
   const appClassName = `min-h-screen w-full transition-colors duration-300 font-sans ${
     isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-50 text-slate-900'
   }`;
-
-  if (!db || !auth) {
-    return <div className="p-10 text-red-500">系統初始化中，或缺乏後端設定。</div>;
-  }
 
   return (
     <div className={appClassName}>
@@ -307,9 +302,9 @@ export default function LaborEduApp() {
           setRole(r);
         }} />
       ) : role === 'teacher' ? (
-        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} />
+        <TeacherDashboard db={db} appId={globalAppId} user={user} isDark={isDarkMode} onLogout={handleLogout} />
       ) : (
-        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} />
+        <StudentView db={db} appId={globalAppId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} />
       )}
     </div>
   );
@@ -405,14 +400,18 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [myAnswer, setMyAnswer] = useState(null);
   const [myText, setMyText] = useState('');
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [displayTime, setDisplayTime] = useState('--:--');
   const [shake, setShake] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
   const [lastReward, setLastReward] = useState(0);
+  
+  // Broadcast Modal State
+  const [broadcastModal, setBroadcastModal] = useState(null);
+  const lastBroadcastIdRef = useRef(null);
 
-  // 確保 setInterval 裡面能抓到最新的 State，並新增必要 Ref 防止監聽器頻繁重置
+  // Refs for consistent access in intervals
   const myAnswerRef = useRef(myAnswer);
   const myTextRef = useRef(myText);
   const hasSubmittedRef = useRef(hasSubmitted);
@@ -461,6 +460,15 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           setIsIndividuallyLocked(false);
         }
 
+        // Handle Teacher Broadcast
+        if (data.teacherMessage && data.teacherMessage.id !== lastBroadcastIdRef.current) {
+            lastBroadcastIdRef.current = data.teacherMessage.id;
+            if (data.teacherMessage.text) {
+                setBroadcastModal(data.teacherMessage);
+                sfx.notify();
+            }
+        }
+
         setSession(data);
       } else {
         setSession({ status: 'closed' });
@@ -468,12 +476,11 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
     }, (err) => console.error(err));
     
     return () => unsub();
-  }, [user, db, appId]); // 移除容易變動的依賴項，維持廣播與連線穩定
+  }, [user, db, appId]);
 
   useEffect(() => {
     if (!user || session?.status === 'closed') return;
     
-    // 使用 userName 作為文檔 ID，支援斷線重連機制
     const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
     const unsub = onSnapshot(pRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -503,7 +510,6 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           setTimeout(() => setConfetti(false), 4000);
         }
       } else {
-        // 初次進入建立紀錄
         setDoc(pRef, { name: userName, updatedAt: Date.now() }, { merge: true });
       }
     });
@@ -511,27 +517,43 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   }, [user, db, appId, session?.currentQuestion, userName, onLogout]);
 
   useEffect(() => {
-    if (session?.status === 'active' && session?.endTime) {
-      const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
-      setTimeLeft(calcTime()); // 確保立刻顯示正確時間
-      
-      const interval = setInterval(() => {
-        const remaining = calcTime();
-        setTimeLeft(remaining);
-        
-        if (remaining > 0 && remaining <= 10) {
-          sfx.tick(); 
-        }
-
-        // 時間到自動交卷
-        if (remaining === 0 && !hasSubmittedRef.current) {
-           confirmSubmission(true); 
-           clearInterval(interval);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
+    if (session?.status !== 'active') {
+        setDisplayTime('--:--');
+        return;
     }
-  }, [session?.status, session?.endTime]); // 修正依賴項，避免接收廣播時重置計時器
+
+    if (!session?.endTime) {
+        setDisplayTime('等待計時');
+        return;
+    }
+
+    if (hasSubmittedRef.current) {
+        setDisplayTime('已作答');
+        return;
+    }
+
+    const interval = setInterval(() => {
+      // Recheck submission state inside interval to freeze timer immediately
+      if (hasSubmittedRef.current) {
+          setDisplayTime('已作答');
+          clearInterval(interval);
+          return;
+      }
+
+      const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+      setDisplayTime(`${Math.floor(remaining / 60).toString().padStart(2, '0')}:${(remaining % 60).toString().padStart(2, '0')}`);
+      
+      if (remaining > 0 && remaining <= 10) {
+        sfx.tick(); 
+      }
+
+      if (remaining === 0 && !hasSubmittedRef.current) {
+         confirmSubmission(true); 
+         clearInterval(interval);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [session?.status, session?.endTime, hasSubmitted]); 
 
   const selectOption = (choice) => {
     if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked) return;
@@ -542,7 +564,6 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
     const currentSession = sessionRefObj.current;
     if (currentSession?.status !== 'active' || hasSubmittedRef.current || isIndividuallyLockedRef.current || !user) return;
     
-    // 手動送出需有答案，自動送出可為空
     if (!isAuto && !myAnswerRef.current) return; 
 
     setHasSubmitted(true);
@@ -596,6 +617,8 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const isLocked = session.status !== 'active' || isIndividuallyLocked || hasSubmitted;
   const showResult = session.status === 'revealed';
   const isCorrect = myAnswer === currentQ.correctAnswer;
+  
+  const isTimerRunningAndCritical = session?.status === 'active' && session?.endTime && !hasSubmitted && (session.endTime - Date.now() <= 10000);
 
   return (
     <div className={`min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
@@ -604,6 +627,11 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
           20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        @keyframes bounceIn {
+          0% { transform: scale(0.9); opacity: 0; }
+          50% { transform: scale(1.02); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
         .confetti-piece {
           position: fixed; width: 12px; height: 35px; background: #ffd700; top: -50px; opacity: 0;
@@ -628,13 +656,25 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
          </button>
       </div>
 
-      {session.teacherMessage && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.5)] border border-white/20 animate-[shake_0.5s_ease-in-out]">
-          <div className="flex items-center font-bold text-lg">
-            <MessageSquare className="mr-3 animate-pulse" size={24} />
-            👨‍🏫 講師廣播
+      {/* Broadcast Modal Overlay */}
+      {broadcastModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-opacity">
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl max-w-md w-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-blue-500/30 transform transition-all animate-[bounceIn_0.3s_ease-out]">
+            <div className="flex items-center text-blue-600 dark:text-blue-400 mb-5 font-black text-2xl border-b border-slate-200 dark:border-slate-700 pb-3">
+              <BellRing className="mr-3 animate-pulse text-blue-500" size={28} />
+              講師廣播
+            </div>
+            <p className="text-lg mb-8 leading-relaxed text-slate-800 dark:text-slate-200">{broadcastModal.text}</p>
+            <button
+              onClick={() => {
+                  sfx.tick();
+                  setBroadcastModal(null);
+              }}
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 text-lg"
+            >
+              我知道了，關閉視窗
+            </button>
           </div>
-          <p className="mt-1 ml-9">{session.teacherMessage}</p>
         </div>
       )}
 
@@ -669,11 +709,13 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           <button onClick={toggleSound} className="opacity-60 hover:opacity-100 hover:scale-110 transition-transform p-2 bg-slate-500/10 rounded-full">
             {soundOn ? <Volume2/> : <VolumeX/>}
           </button>
-          <div className={`flex items-center font-mono text-2xl font-black px-5 py-2 rounded-xl shadow-inner ${
-            timeLeft <= 10 && !isLocked && session.status === 'active' ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' : 'bg-black/10 dark:bg-white/10'
+          <div className={`flex items-center font-mono text-xl md:text-2xl font-black px-4 md:px-5 py-2 rounded-xl shadow-inner transition-colors ${
+            isTimerRunningAndCritical ? 'bg-red-500/20 text-red-500 animate-pulse border border-red-500/50' : 
+            hasSubmitted ? 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30' :
+            'bg-black/10 dark:bg-white/10'
           }`}>
             <Clock className="mr-2" size={20} />
-            {session.status !== 'active' ? '00:00' : `${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}`}
+            {displayTime}
           </div>
         </div>
       </div>
@@ -806,14 +848,13 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       )}
     </div>
   );
-} // <-- 這個重要括號就是原本遺漏的，導致了 Vercel 編譯失敗
+}
 
 function StudentResultView({ db, appId, user, userName, onLogout }) {
   const [scores, setScores] = useState([]);
   
   useEffect(() => {
     const fetchScores = async () => {
-      // 這裡也同步改為使用 userName 讀取雷達圖分數
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
       const unsub = onSnapshot(pRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -877,11 +918,11 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
 }
 
 function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
-  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, teacherMessage: '' });
+  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0 });
   const [participants, setParticipants] = useState([]);
   const [timeLimit, setTimeLimit] = useState(5); 
   const [expectedCount, setExpectedCount] = useState(0); 
-  const [teacherMessage, setTeacherMessage] = useState(""); 
+  const [teacherMessageInput, setTeacherMessageInput] = useState(""); 
   const [dbError, setDbError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -893,7 +934,6 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
         const data = snapshot.data();
         setSession(data);
         if (data.expectedCount !== undefined) setExpectedCount(data.expectedCount);
-        if (data.teacherMessage !== undefined) setTeacherMessage(data.teacherMessage);
       } else {
         setSession({ status: 'closed', currentQuestion: 0 });
       }
@@ -923,23 +963,32 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     } catch (error) {
       console.error("更新失敗:", error);
       if (error.message === "timeout") {
-        setDbError("連線逾時！請至 Firebase 建立「Firestore Database」(注意：非 Realtime Database)。");
+        setDbError("連線逾時！請檢查網路狀態。");
       } else {
-        setDbError("權限不足！請至 Firestore Database 的「規則」修改為 allow read, write: if true;");
+        setDbError("權限不足或連線錯誤。");
       }
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const startSession = () => updateSession({ status: 'active', currentQuestion: 0, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+  // 老師開啟第一關，但不啟動計時器 (endTime: null)
+  const startSession = () => updateSession({ status: 'active', currentQuestion: 0, endTime: null, expectedCount });
   
+  // 老師手動按下開始計時
+  const startTimer = () => {
+      if (timeLimit <= 0) {
+          alert("請輸入有效的作答時間！"); return;
+      }
+      updateSession({ endTime: Date.now() + (Number(timeLimit) * 60 * 1000) });
+  };
+
   const nextQuestion = () => {
     const nextIdx = session.currentQuestion + 1;
     if (nextIdx >= SCENARIOS.length) {
       updateSession({ status: 'finished' });
     } else {
-      updateSession({ status: 'active', currentQuestion: nextIdx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+      updateSession({ status: 'active', currentQuestion: nextIdx, endTime: null, expectedCount });
     }
   };
 
@@ -948,10 +997,10 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     
     const msg = session.status === 'closed' 
       ? `系統目前為未開放狀態。\n確定要開放系統，並直接從第 ${idx + 1} 關開始嗎？` 
-      : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間將依據設定重新計算。`;
+      : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間需重新手動啟動。`;
       
     if (window.confirm(msg)) {
-      updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+      updateSession({ status: 'active', currentQuestion: idx, endTime: null, expectedCount });
     }
   };
 
@@ -985,8 +1034,16 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
   };
 
   const sendTeacherMessage = async () => {
-    await updateSession({ teacherMessage });
-    alert("廣播訊息已發送至學員畫面！");
+    if (!teacherMessageInput.trim()) return;
+    // 使用物件結構並帶入 timestamp 作為 ID，確保學員端可以偵測到新訊息並彈出視窗
+    await updateSession({ 
+        teacherMessage: { 
+            text: teacherMessageInput, 
+            id: Date.now() 
+        } 
+    });
+    alert("廣播訊息已發送並彈出於所有學員畫面！");
+    setTeacherMessageInput(""); // 發送後清空輸入框
   };
 
   const currentQ = SCENARIOS[session.currentQuestion] || SCENARIOS[0];
@@ -1021,13 +1078,13 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
       `}</style>
       
       {/* Sidebar Controls */}
-      <div className="w-full md:w-80 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
-        <h2 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 cyber-border pb-4 mt-8 md:mt-0">
+      <div className="w-full md:w-[380px] bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+        <h2 className="text-3xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 cyber-border pb-4 mt-8 md:mt-0">
           LaborSphere
           <span className="block text-sm font-medium tracking-widest opacity-60 text-blue-600 dark:text-blue-300 mt-1 uppercase">Control Center</span>
         </h2>
 
-        <div className="space-y-5 flex-grow">
+        <div className="space-y-4 flex-grow">
           {dbError && (
             <div className="bg-red-100 border-2 border-red-500 text-red-700 p-4 rounded-xl text-sm font-bold shadow-lg animate-pulse">
               {dbError}
@@ -1063,34 +1120,29 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                 max="60"
                 value={timeLimit}
                 onChange={(e) => setTimeLimit(Number(e.target.value))}
-                disabled={session.status !== 'closed' && session.status !== 'finished'}
                 className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 transition-all"
               />
             </div>
           </div>
 
           <div className="cyber-panel p-4 rounded-xl">
-        <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息</label>
-        <textarea
-          value={teacherMessage}
-          onChange={(e) => setTeacherMessage(e.target.value)}
-          rows="2"
-          placeholder="輸入要推播給學員的提醒或引導..."
-          className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
-        />
-        <button onClick={sendTeacherMessage} disabled={isUpdating} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
-          發送廣播
-        </button>
-        <button onClick={async () => { setTeacherMessage(''); await updateSession({ teacherMessage: '' }); }} disabled={isUpdating} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm disabled:opacity-50">
-          清除廣播
-        </button>
-      </div>
+            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><BellRing size={16} className="mr-2"/>發送彈出式廣播訊息</label>
+            <textarea
+              value={teacherMessageInput}
+              onChange={(e) => setTeacherMessageInput(e.target.value)}
+              rows="2"
+              placeholder="輸入要推播給學員的提醒或引導 (學員需按確認)..."
+              className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
+            />
+            <button onClick={sendTeacherMessage} disabled={isUpdating || !teacherMessageInput.trim()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
+              發送全班廣播
+            </button>
+          </div>
 
-      <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
-            Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
+          <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-6 mb-2 uppercase cyber-border pb-2 flex items-center">
+             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
-          {/* Mission Grid */}
           <div className="grid grid-cols-5 gap-2 mb-6">
             {SCENARIOS.map((_, idx) => (
               <button
@@ -1109,13 +1161,20 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
             ))}
           </div>
 
+          {}
           {session.status === 'closed' ? (
              <button onClick={startSession} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始 (第1關)'}
+               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入 (第1關)'}
              </button>
           ) : (
             <>
-              {session.status === 'active' && (
+              {session.status === 'active' && !session.endTime && (
+                <button onClick={startTimer} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
+                  <Clock className="mr-2" size={20}/> {isUpdating ? '處理中...' : '開始計時 (學員同步啟動)'}
+                </button>
+              )}
+
+              {session.status === 'active' && session.endTime && (
                 <button onClick={stopTimer} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
                   <Square className="mr-2" size={20}/> {isUpdating ? '處理中...' : '強制停止作答 (進入討論)'}
                 </button>
@@ -1129,7 +1188,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
               {session.status === 'revealed' && (
                 <button onClick={nextQuestion} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題'}
+                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題 (需重啟計時)'}
                 </button>
               )}
             </>
@@ -1146,7 +1205,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
         </div>
       </div>
 
-      {/* Main Dashboard Area */}
+      {}
       <div className="flex-1 p-6 md:p-10 overflow-y-auto h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgzMCwgNTgsIDEzOCwgMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] pointer-events-none opacity-50 z-0"></div>
 
@@ -1190,9 +1249,13 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                    
                    {session.status === 'active' && (
                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
-                       <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
-                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
+                       <Clock size={56} className={`mx-auto mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)] ${session.endTime ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
+                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">
+                           {session.endTime ? '作答接收中' : '等待啟動計時'}
+                       </h4>
+                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">
+                           {session.endTime ? '監控數據變化，適當時機可切換至討論模式。' : '請點擊左側「開始計時」以同步啟動所有學員裝置。'}
+                       </p>
                      </div>
                    )}
                    {session.status === 'discussion' && (
