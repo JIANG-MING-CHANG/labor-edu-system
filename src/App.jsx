@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
+// 修正 1：引入 getApps, getApp 防止 React 18 重複渲染導致 Firebase 崩潰
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { 
@@ -144,7 +145,7 @@ const SCENARIOS = [
       D: "沒有責任，因為阿強昏迷前沒有主動向雇主反映身體不適"
     },
     correctAnswer: "B",
-    plainText: "在戶外高溫環境工作，老闆依法「必須」提供休息陰涼處和充足的飲水。如果因為老闆沒做防護措施導致員工熱衰竭或中暑，這絕對算職業災害，老闆會面臨刑罰與高額罰款！",
+    plainText: "在戶外高溫環境工作，老闆依法「必須」提供休息陰涼處和充足飲水。如果因為老闆沒做防護措施導致員工熱衰竭或中暑，這絕對算職業災害，老闆會面臨刑罰與高額罰款！",
     legalText: "【職業安全衛生設施規則第324-6條】雇主使勞工從事戶外作業，為防範高溫引起之熱疾病，應視天候狀況採取下列危害預防措施：一、降低作業場所之溫度。二、提供陰涼之休息場所。三、提供充足飲用水或適當之飲料。【職業安全衛生法第6條】雇主對防止輻射、高溫、低溫、超音波、噪音...引起之危害，應有符合規定之必要安全衛生設備及措施。",
     rulingText: "⚖️ 實務案例：【勞動部職安署 熱危害專案勞檢裁罰】每年夏季職安署均會針對戶外作業啟動專案檢查。真實案例中，某營造廠未設遮陽與飲水設施，致勞工熱衰竭死亡。職安署除勒令停工並重罰最高30萬元外，雇主更被依涉嫌《刑法》過失致死罪及違反《職安法》移送地檢署偵辦，雇主須負完全過失責任。"
   },
@@ -230,6 +231,7 @@ export default function LaborEduApp() {
   const [role, setRole] = useState(null); // 'teacher' or 'student'
   const [userName, setUserName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [authError, setAuthError] = useState(''); // 新增：用於顯示驗證錯誤
   
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'labor-edu-default';
   
@@ -237,7 +239,7 @@ export default function LaborEduApp() {
     try {
       // ✅ 修正了 API 金鑰中的錯字，確保與 Firebase 控制台完全一致！
       const firebaseConfig = {
-        apiKey: "AIzaSyDUWk4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
+        apiKey: "AIzaSyDUWK4fLiiRWF5owKvtI-yQqj8bjUrKPC8", 
         authDomain: "labor-edu.firebaseapp.com",
         projectId: "labor-edu",
         storageBucket: "labor-edu.firebasestorage.app",
@@ -246,7 +248,10 @@ export default function LaborEduApp() {
         measurementId: "G-6CCC25C7T0"
       };
       if (!firebaseConfig) throw new Error("Firebase config missing");
-      const app = initializeApp(firebaseConfig);
+      
+      // 使用 getApps 避免 React 18 嚴格模式重複初始化導致錯誤
+      const apps = getApps();
+      const app = apps.length === 0 ? initializeApp(firebaseConfig) : apps[0];
       return { db: getFirestore(app), auth: getAuth(app) };
     } catch (e) {
       console.error("Firebase init error:", e);
@@ -265,6 +270,8 @@ export default function LaborEduApp() {
         }
       } catch (err) {
         console.error("Auth Error:", err);
+        // 修正 3：若匿名登入未開啟，系統會直接在畫面最上方顯示紅字提醒，方便除錯
+        setAuthError("⚠️ Firebase 驗證失敗：請至 Firebase 控制台 -> Authentication -> Sign-in method 啟用「匿名登入 (Anonymous)」，否則學員將無法連線！");
       }
     };
     initAuth();
@@ -289,6 +296,13 @@ export default function LaborEduApp() {
 
   return (
     <div className={appClassName}>
+      {/* 驗證錯誤提示橫幅 */}
+      {authError && (
+        <div className="fixed top-0 left-0 w-full bg-red-600 text-white text-center py-3 text-sm font-bold z-[100] shadow-md animate-pulse px-4">
+          {authError}
+        </div>
+      )}
+
       {/* 全域日夜間模式切換按鈕 */}
       <div className="fixed top-4 right-4 z-[60] print:hidden">
          <button onClick={toggleTheme} className="p-2 rounded-full bg-white/30 dark:bg-black/30 hover:bg-slate-300/50 dark:hover:bg-slate-800/50 transition-all text-slate-900 dark:text-white shadow-lg backdrop-blur-md border border-slate-500/20">
@@ -499,7 +513,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   };
 
   const confirmSubmission = async () => {
-    if (session?.status !== 'active' || !myAnswer || hasSubmitted || isIndividuallyLocked) return;
+    if (session?.status !== 'active' || !myAnswer || hasSubmitted || isIndividuallyLocked || !user) return;
     setHasSubmitted(true);
     
     try {
@@ -756,6 +770,7 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
   const [scores, setScores] = useState([]);
   
   useEffect(() => {
+    if (!user) return;
     const fetchScores = async () => {
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', user.uid);
       const unsub = onSnapshot(pRef, (docSnap) => {
@@ -826,8 +841,10 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
   const [dbError, setDbError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // 修正 4：移除 !user 檢查。
+  // 因為您的資料庫規則已設定為 allow read, write: if true，
+  // 所以就算認證未過，講師依然可以直接讀取與更新狀態，避免按鈕卡死。
   useEffect(() => {
-    if (!user) return;
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
     const unsub = onSnapshot(sessionRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -837,10 +854,9 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
       }
     });
     return () => unsub();
-  }, [user, db, appId]);
+  }, [db, appId]); // 移除了對 user 的依賴
 
   useEffect(() => {
-    if (!user) return;
     const pColl = collection(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants');
     const unsub = onSnapshot(pColl, (snapshot) => {
       const parts = [];
@@ -848,7 +864,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
       setParticipants(parts);
     });
     return () => unsub();
-  }, [user, db, appId]);
+  }, [db, appId]); // 移除了對 user 的依賴
 
   const updateSession = async (data) => {
     if (isUpdating) return;
@@ -856,13 +872,12 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     setDbError("");
     try {
       const ref = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
-      // 4 秒超時判定，防止按鈕卡死無反應
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 4000));
       await Promise.race([setDoc(ref, data, { merge: true }), timeoutPromise]);
     } catch (error) {
       console.error("更新失敗:", error);
       if (error.message === "timeout") {
-        setDbError("連線逾時！請至 Firebase 建立「Firestore Database」(注意：非 Realtime Database)。");
+        setDbError("連線逾時！請確認網路狀態或 Firebase 設定。");
       } else {
         setDbError("權限不足！請至 Firestore Database 的「規則」修改為 allow read, write: if true;");
       }
@@ -1078,164 +1093,164 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
          {session.status !== 'closed' && session.status !== 'finished' ? (
            <div className="max-w-6xl mx-auto space-y-6 relative z-10">
-              
-              {/* Top Row: Chart & Stats */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 {/* Live Chart */}
-                 <div className="lg:col-span-2 cyber-panel rounded-3xl p-6 shadow-2xl">
-                    <div className="flex justify-between items-center mb-6 cyber-border pb-4">
-                      <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
-                      <span className="text-sm px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200 rounded-full font-mono">
-                        SYNC: {answerCount} / {participants.length}
-                      </span>
-                    </div>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
-                          <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
-                          <YAxis stroke="#64748b" allowDecimals={false} />
-                          <Tooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
-                          <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1000}>
-                            {chartData.map((entry, index) => {
-                               const isCorrect = entry.name === currentQ.correctAnswer;
-                               let color = "#3b82f6"; 
-                               if (session.status === 'revealed') {
-                                 color = isCorrect ? "#10b981" : "#ef4444"; 
-                               }
-                               return <Cell key={`cell-${index}`} fill={color} style={{filter: `drop-shadow(0 0 8px ${color})`}}/>;
-                            })}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                 </div>
+             
+             {/* Top Row: Chart & Stats */}
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Live Chart */}
+                <div className="lg:col-span-2 cyber-panel rounded-3xl p-6 shadow-2xl">
+                   <div className="flex justify-between items-center mb-6 cyber-border pb-4">
+                     <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
+                     <span className="text-sm px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200 rounded-full font-mono">
+                       SYNC: {answerCount} / {participants.length}
+                     </span>
+                   </div>
+                   <div className="h-64">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={chartData}>
+                         <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
+                         <YAxis stroke="#64748b" allowDecimals={false} />
+                         <Tooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
+                         <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1000}>
+                           {chartData.map((entry, index) => {
+                              const isCorrect = entry.name === currentQ.correctAnswer;
+                              let color = "#3b82f6"; 
+                              if (session.status === 'revealed') {
+                                color = isCorrect ? "#10b981" : "#ef4444"; 
+                              }
+                              return <Cell key={`cell-${index}`} fill={color} style={{filter: `drop-shadow(0 0 8px ${color})`}}/>;
+                           })}
+                         </Bar>
+                       </BarChart>
+                     </ResponsiveContainer>
+                   </div>
+                </div>
 
-                 {/* Phase Indicator */}
-                 <div className="cyber-panel rounded-3xl p-6 shadow-2xl flex flex-col justify-center relative overflow-hidden">
-                    <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none ${session.status === 'active' ? 'bg-blue-500' : session.status === 'discussion' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
-                    
-                    {session.status === 'active' && (
-                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
-                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
-                        <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
-                      </div>
-                    )}
-                    {session.status === 'discussion' && (
-                      <div className="text-center text-yellow-600 dark:text-yellow-300 relative z-10">
-                        <MessageSquare size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)] dark:drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] animate-pulse" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">思辨引導期</h4>
-                        <p className="text-sm opacity-90 mb-4 text-yellow-800 dark:text-yellow-100">請邀請選擇少數選項的學員發表觀點。</p>
-                        <p className="inline-block bg-yellow-100 dark:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-500/50 px-4 py-2 rounded-xl text-yellow-700 dark:text-yellow-200 font-bold shadow-inner">
-                          正解預覽：<span className="text-2xl ml-1">{currentQ.correctAnswer}</span>
-                        </p>
-                      </div>
-                    )}
-                    {session.status === 'revealed' && (
-                      <div className="text-center text-green-600 dark:text-green-300 relative z-10">
-                        <CheckCircle2 size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.6)] dark:drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">解答已公佈</h4>
-                        <p className="text-sm opacity-80 text-green-700 dark:text-green-100">請參照下方「法理面板」進行深度解析。</p>
-                      </div>
-                    )}
-                 </div>
-              </div>
-
-              {/* Legal Reference Panel */}
-              <div className="cyber-panel rounded-3xl p-8 border-l-4 border-l-purple-500 shadow-2xl relative overflow-hidden bg-gradient-to-br from-white to-purple-50 dark:from-slate-900/80 dark:to-purple-900/20">
-                 <h3 className="font-black text-2xl mb-6 flex items-center text-slate-900 dark:text-white"><ShieldAlert className="mr-3 text-purple-500 dark:text-purple-400" size={28}/> 👩‍⚖️ 深度法理與實務判例解析 (講師專屬)</h3>
-                 
-                 <div className="grid md:grid-cols-2 gap-6 relative z-10">
-                    <div className="bg-blue-50/50 dark:bg-black/40 p-6 rounded-2xl border border-blue-200 dark:border-blue-500/20 backdrop-blur-md">
-                       <div className="font-bold text-lg mb-3 flex items-center text-blue-700 dark:text-blue-300">
-                          <Scale size={20} className="mr-2"/> 條文依據
-                       </div>
-                       <p className="text-slate-700 dark:text-blue-50/90 leading-relaxed text-sm">{currentQ.legalText}</p>
-                    </div>
-                    
-                    <div className="bg-purple-50/50 dark:bg-purple-950/40 p-6 rounded-2xl border border-purple-200 dark:border-purple-500/30 backdrop-blur-md shadow-[inset_0_0_20px_rgba(168,85,247,0.05)] dark:shadow-[inset_0_0_20px_rgba(168,85,247,0.1)]">
-                       <div className="font-bold text-lg mb-3 flex items-center text-purple-700 dark:text-purple-300">
-                          <span className="text-xl mr-2">⚖️</span> 實務判例 / 裁罰實例
-                       </div>
-                       <p className="text-slate-700 dark:text-purple-50/90 leading-relaxed text-sm font-medium">
-                          {currentQ.rulingText.replace('⚖️ 實務判例：', '')}
+                {/* Phase Indicator */}
+                <div className="cyber-panel rounded-3xl p-6 shadow-2xl flex flex-col justify-center relative overflow-hidden">
+                   <div className={`absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[80px] opacity-30 pointer-events-none ${session.status === 'active' ? 'bg-blue-500' : session.status === 'discussion' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                   
+                   {session.status === 'active' && (
+                     <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
+                       <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
+                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
+                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
+                     </div>
+                   )}
+                   {session.status === 'discussion' && (
+                     <div className="text-center text-yellow-600 dark:text-yellow-300 relative z-10">
+                       <MessageSquare size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)] dark:drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] animate-pulse" />
+                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">思辨引導期</h4>
+                       <p className="text-sm opacity-90 mb-4 text-yellow-800 dark:text-yellow-100">請邀請選擇少數選項的學員發表觀點。</p>
+                       <p className="inline-block bg-yellow-100 dark:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-500/50 px-4 py-2 rounded-xl text-yellow-700 dark:text-yellow-200 font-bold shadow-inner">
+                         正解預覽：<span className="text-2xl ml-1">{currentQ.correctAnswer}</span>
                        </p>
-                    </div>
-                 </div>
-              </div>
+                     </div>
+                   )}
+                   {session.status === 'revealed' && (
+                     <div className="text-center text-green-600 dark:text-green-300 relative z-10">
+                       <CheckCircle2 size={56} className="mx-auto mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.6)] dark:drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
+                       <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">解答已公佈</h4>
+                       <p className="text-sm opacity-80 text-green-700 dark:text-green-100">請參照下方「法理面板」進行深度解析。</p>
+                     </div>
+                   )}
+                </div>
+             </div>
 
-              {/* Student Feedback Table */}
-              <div className="cyber-panel rounded-3xl p-6 shadow-2xl">
-                 <h3 className="font-bold text-xl mb-6 flex items-center text-blue-700 dark:text-blue-300 cyber-border pb-4"><Users className="mr-2"/> 學員即時遙測與陣列控制</h3>
-                 <div className="overflow-x-auto">
-                   <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
-                     <thead className="bg-slate-100 dark:bg-[#0B1120] text-blue-700 dark:text-blue-300 border-b border-blue-200 dark:border-blue-900/50">
-                       <tr>
-                         <th className="p-4 font-bold tracking-wider">學員識別碼</th>
-                         <th className="p-4 font-bold tracking-wider w-24">選擇</th>
-                         <th className="p-4 font-bold tracking-wider w-1/3">通訊回饋 (補充觀點)</th>
-                         <th className="p-4 font-bold tracking-wider w-28">連線狀態</th>
-                         <th className="p-4 font-bold tracking-wider text-right">覆寫控制</th>
-                       </tr>
-                     </thead>
-                     <tbody className="divide-y divide-blue-200 dark:divide-blue-900/20">
-                       {participants.filter(p => !p.kicked).map(p => {
-                         const isCorrect = p[`q_${session.currentQuestion}_choice`] === currentQ.correctAnswer;
-                         return (
-                           <tr key={p.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group">
-                             <td className="p-4 font-bold text-slate-900 dark:text-slate-100 flex items-center">
-                               <div className="w-2 h-2 rounded-full bg-green-500 mr-3 animate-pulse"></div>
-                               {p.name}
-                             </td>
-                             <td className="p-4">
-                               {p[`q_${session.currentQuestion}_choice`] ? (
-                                 <span className={`px-3 py-1 rounded-md text-sm font-black shadow-inner ${session.status === 'revealed' ? (isCorrect ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 border border-green-300 dark:border-green-500/30' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 border border-red-300 dark:border-red-500/30') : 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200'}`}>
-                                   {p[`q_${session.currentQuestion}_choice`]}
-                                 </span>
-                               ) : (
-                                 <span className="text-slate-400 dark:text-slate-600 opacity-50">-</span>
-                               )}
-                             </td>
-                             <td className="p-4 break-words max-w-xs text-slate-600 dark:text-slate-400">
-                               {p[`q_${session.currentQuestion}_text`] || <span className="italic opacity-30">尚未確認送出</span>}
-                             </td>
-                             <td className="p-4">
-                               {p.locked ? (
-                                 <span className="text-orange-500 dark:text-orange-400 flex items-center text-xs font-bold"><Lock size={14} className="mr-1"/> 覆寫鎖定</span>
-                               ) : (
-                                 <span className="text-emerald-500 dark:text-emerald-400 flex items-center text-xs font-bold"><CheckCircle2 size={14} className="mr-1"/> 正常傳輸</span>
-                               )}
-                             </td>
-                             <td className="p-4 text-right space-x-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                               {session.status === 'revealed' && isCorrect && (
-                                 <button onClick={() => rewardStudent(p.id)} className="p-2 inline-flex items-center rounded-lg bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-500/50 hover:scale-110 transition-all border border-yellow-300 dark:border-yellow-500/30" title="發放虛擬獎勵 (觸發特效)">
-                                   <Gift size={16} />
-                                 </button>
-                               )}
-                               <button onClick={() => toggleLockStudent(p.id, p.locked)} className={`p-2 inline-flex items-center rounded-lg transition-all border ${p.locked ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/50 border-green-300 dark:border-green-500/30 hover:scale-110' : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-500/50 border-orange-300 dark:border-orange-500/30 hover:scale-110'}`} title={p.locked ? "解除作答鎖定" : "強制暫停該員作答"}>
-                                 {p.locked ? <Unlock size={16} /> : <Lock size={16} />}
-                               </button>
-                               <button onClick={() => kickStudent(p.id, p.name)} className="p-2 inline-flex items-center rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/50 border border-red-300 dark:border-red-500/30 hover:scale-110 transition-all" title="中斷連線 (踢出)">
-                                 <LogOut size={16} />
-                               </button>
-                             </td>
-                           </tr>
-                         );
-                       })}
-                       {participants.filter(p => !p.kicked).length === 0 && (
-                         <tr>
-                           <td colSpan="5" className="p-12 text-center text-slate-500 font-mono tracking-widest">
-                             <div className="flex flex-col items-center">
-                               <ShieldAlert size={32} className="mb-3 opacity-20"/>
-                               等待終端設備連線中...
-                             </div>
-                           </td>
-                         </tr>
-                       )}
-                     </tbody>
-                   </table>
-                 </div>
-              </div>
+             {/* Legal Reference Panel */}
+             <div className="cyber-panel rounded-3xl p-8 border-l-4 border-l-purple-500 shadow-2xl relative overflow-hidden bg-gradient-to-br from-white to-purple-50 dark:from-slate-900/80 dark:to-purple-900/20">
+                <h3 className="font-black text-2xl mb-6 flex items-center text-slate-900 dark:text-white"><ShieldAlert className="mr-3 text-purple-500 dark:text-purple-400" size={28}/> 👩‍⚖️ 深度法理與實務判例解析 (講師專屬)</h3>
+                
+                <div className="grid md:grid-cols-2 gap-6 relative z-10">
+                   <div className="bg-blue-50/50 dark:bg-black/40 p-6 rounded-2xl border border-blue-200 dark:border-blue-500/20 backdrop-blur-md">
+                      <div className="font-bold text-lg mb-3 flex items-center text-blue-700 dark:text-blue-300">
+                         <Scale size={20} className="mr-2"/> 條文依據
+                      </div>
+                      <p className="text-slate-700 dark:text-blue-50/90 leading-relaxed text-sm">{currentQ.legalText}</p>
+                   </div>
+                   
+                   <div className="bg-purple-50/50 dark:bg-purple-950/40 p-6 rounded-2xl border border-purple-200 dark:border-purple-500/30 backdrop-blur-md shadow-[inset_0_0_20px_rgba(168,85,247,0.05)] dark:shadow-[inset_0_0_20px_rgba(168,85,247,0.1)]">
+                      <div className="font-bold text-lg mb-3 flex items-center text-purple-700 dark:text-purple-300">
+                         <span className="text-xl mr-2">⚖️</span> 實務判例 / 裁罰實例
+                      </div>
+                      <p className="text-slate-700 dark:text-purple-50/90 leading-relaxed text-sm font-medium">
+                         {currentQ.rulingText.replace('⚖️ 實務判例：', '')}
+                      </p>
+                   </div>
+                </div>
+             </div>
+
+             {/* Student Feedback Table */}
+             <div className="cyber-panel rounded-3xl p-6 shadow-2xl">
+                <h3 className="font-bold text-xl mb-6 flex items-center text-blue-700 dark:text-blue-300 cyber-border pb-4"><Users className="mr-2"/> 學員即時遙測與陣列控制</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+                    <thead className="bg-slate-100 dark:bg-[#0B1120] text-blue-700 dark:text-blue-300 border-b border-blue-200 dark:border-blue-900/50">
+                      <tr>
+                        <th className="p-4 font-bold tracking-wider">學員識別碼</th>
+                        <th className="p-4 font-bold tracking-wider w-24">選擇</th>
+                        <th className="p-4 font-bold tracking-wider w-1/3">通訊回饋 (補充觀點)</th>
+                        <th className="p-4 font-bold tracking-wider w-28">連線狀態</th>
+                        <th className="p-4 font-bold tracking-wider text-right">覆寫控制</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-blue-200 dark:divide-blue-900/20">
+                      {participants.filter(p => !p.kicked).map(p => {
+                        const isCorrect = p[`q_${session.currentQuestion}_choice`] === currentQ.correctAnswer;
+                        return (
+                          <tr key={p.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors group">
+                            <td className="p-4 font-bold text-slate-900 dark:text-slate-100 flex items-center">
+                              <div className="w-2 h-2 rounded-full bg-green-500 mr-3 animate-pulse"></div>
+                              {p.name}
+                            </td>
+                            <td className="p-4">
+                              {p[`q_${session.currentQuestion}_choice`] ? (
+                                <span className={`px-3 py-1 rounded-md text-sm font-black shadow-inner ${session.status === 'revealed' ? (isCorrect ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 border border-green-300 dark:border-green-500/30' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 border border-red-300 dark:border-red-500/30') : 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200'}`}>
+                                  {p[`q_${session.currentQuestion}_choice`]}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 dark:text-slate-600 opacity-50">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 break-words max-w-xs text-slate-600 dark:text-slate-400">
+                              {p[`q_${session.currentQuestion}_text`] || <span className="italic opacity-30">尚未確認送出</span>}
+                            </td>
+                            <td className="p-4">
+                              {p.locked ? (
+                                <span className="text-orange-500 dark:text-orange-400 flex items-center text-xs font-bold"><Lock size={14} className="mr-1"/> 覆寫鎖定</span>
+                              ) : (
+                                <span className="text-emerald-500 dark:text-emerald-400 flex items-center text-xs font-bold"><CheckCircle2 size={14} className="mr-1"/> 正常傳輸</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-right space-x-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                              {session.status === 'revealed' && isCorrect && (
+                                <button onClick={() => rewardStudent(p.id)} className="p-2 inline-flex items-center rounded-lg bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-500/50 hover:scale-110 transition-all border border-yellow-300 dark:border-yellow-500/30" title="發放虛擬獎勵 (觸發特效)">
+                                  <Gift size={16} />
+                                </button>
+                              )}
+                              <button onClick={() => toggleLockStudent(p.id, p.locked)} className={`p-2 inline-flex items-center rounded-lg transition-all border ${p.locked ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/50 border-green-300 dark:border-green-500/30 hover:scale-110' : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-500/50 border-orange-300 dark:border-orange-500/30 hover:scale-110'}`} title={p.locked ? "解除作答鎖定" : "強制暫停該員作答"}>
+                                {p.locked ? <Unlock size={16} /> : <Lock size={16} />}
+                              </button>
+                              <button onClick={() => kickStudent(p.id, p.name)} className="p-2 inline-flex items-center rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/50 border border-red-300 dark:border-red-500/30 hover:scale-110 transition-all" title="中斷連線 (踢出)">
+                                <LogOut size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {participants.filter(p => !p.kicked).length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="p-12 text-center text-slate-500 font-mono tracking-widest">
+                            <div className="flex flex-col items-center">
+                              <ShieldAlert size={32} className="mb-3 opacity-20"/>
+                              等待終端設備連線中...
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+             </div>
 
            </div>
          ) : (
