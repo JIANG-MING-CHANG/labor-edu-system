@@ -236,7 +236,7 @@ export default function LaborEduApp() {
   const { db, auth } = useMemo(() => {
     try {
       const firebaseConfig = {
-        apiKey: "AIzaSyDUWK4fLiiRWF5owKvtI-yQqj8bjUrKPC8", 
+        apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
         authDomain: "labor-edu.firebaseapp.com",
         projectId: "labor-edu",
         storageBucket: "labor-edu.firebasestorage.app",
@@ -412,27 +412,33 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
   const [lastReward, setLastReward] = useState(0);
 
-  // 確保 setInterval 裡面能抓到最新的 State
+  // 確保 setInterval 裡面能抓到最新的 State，並新增必要 Ref 防止監聽器頻繁重置
   const myAnswerRef = useRef(myAnswer);
   const myTextRef = useRef(myText);
   const hasSubmittedRef = useRef(hasSubmitted);
+  const sessionRefObj = useRef(session);
+  const isIndividuallyLockedRef = useRef(isIndividuallyLocked);
+  const lastRewardRef = useRef(0);
 
   useEffect(() => { myAnswerRef.current = myAnswer; }, [myAnswer]);
   useEffect(() => { myTextRef.current = myText; }, [myText]);
   useEffect(() => { hasSubmittedRef.current = hasSubmitted; }, [hasSubmitted]);
+  useEffect(() => { sessionRefObj.current = session; }, [session]);
+  useEffect(() => { isIndividuallyLockedRef.current = isIndividuallyLocked; }, [isIndividuallyLocked]);
 
   useEffect(() => {
     if (!user) return;
-    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main');
     
-    const unsub = onSnapshot(sessionRef, (snapshot) => {
+    const unsub = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
+        const prevSession = sessionRefObj.current;
         
-        if (session && session.status !== data.status) {
+        if (prevSession && prevSession.status !== data.status) {
           if (data.status === 'revealed') {
              const correct = SCENARIOS[data.currentQuestion]?.correctAnswer;
-             if (myAnswer === correct) {
+             if (myAnswerRef.current === correct) {
                sfx.success();
                setConfetti(true);
                setTimeout(()=>setConfetti(false), 4000); 
@@ -447,10 +453,11 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           }
         }
         
-        if (session && session.currentQuestion !== data.currentQuestion) {
+        if (prevSession && prevSession.currentQuestion !== data.currentQuestion) {
           setMyAnswer(null);
           setMyText('');
           setHasSubmitted(false);
+          hasSubmittedRef.current = false;
           setIsIndividuallyLocked(false);
         }
 
@@ -459,11 +466,12 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
         setSession({ status: 'closed' });
       }
     }, (err) => console.error(err));
+    
     return () => unsub();
-  }, [user, db, appId, session, myAnswer]);
+  }, [user, db, appId]); // 移除容易變動的依賴項，維持廣播與連線穩定
 
   useEffect(() => {
-    if (!user || !session || session.status === 'closed') return;
+    if (!user || session?.status === 'closed') return;
     
     // 使用 userName 作為文檔 ID，支援斷線重連機制
     const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
@@ -477,18 +485,19 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
         }
         setIsIndividuallyLocked(!!data.locked);
 
-        // 自動恢復之前的作答狀態 (處理重新整理頁面)
-        const savedAns = data[`q_${session.currentQuestion}_choice`];
-        const savedText = data[`q_${session.currentQuestion}_text`];
+        const currentQ = sessionRefObj.current?.currentQuestion || 0;
+        const savedAns = data[`q_${currentQ}_choice`];
+        const savedText = data[`q_${currentQ}_text`];
         
         if (savedAns && !hasSubmittedRef.current) {
           if (savedAns !== '未作答') setMyAnswer(savedAns);
           if (savedText && savedText !== '時間到系統自動交卷') setMyText(savedText);
           setHasSubmitted(true);
+          hasSubmittedRef.current = true;
         }
 
-        if (data.rewardTrigger && data.rewardTrigger > lastReward) {
-          setLastReward(data.rewardTrigger);
+        if (data.rewardTrigger && data.rewardTrigger > lastRewardRef.current) {
+          lastRewardRef.current = data.rewardTrigger;
           sfx.success(); 
           setConfetti(true);
           setTimeout(() => setConfetti(false), 4000);
@@ -499,12 +508,15 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       }
     });
     return () => unsub();
-  }, [user, db, appId, session, lastReward, onLogout, userName]);
+  }, [user, db, appId, session?.currentQuestion, userName, onLogout]);
 
   useEffect(() => {
     if (session?.status === 'active' && session?.endTime) {
+      const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+      setTimeLeft(calcTime()); // 確保立刻顯示正確時間
+      
       const interval = setInterval(() => {
-        const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+        const remaining = calcTime();
         setTimeLeft(remaining);
         
         if (remaining > 0 && remaining <= 10) {
@@ -519,7 +531,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [session]);
+  }, [session?.status, session?.endTime]); // 修正依賴項，避免接收廣播時重置計時器
 
   const selectOption = (choice) => {
     if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked) return;
@@ -527,18 +539,21 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   };
 
   const confirmSubmission = async (isAuto = false) => {
-    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked || !user) return;
+    const currentSession = sessionRefObj.current;
+    if (currentSession?.status !== 'active' || hasSubmittedRef.current || isIndividuallyLockedRef.current || !user) return;
+    
     // 手動送出需有答案，自動送出可為空
     if (!isAuto && !myAnswerRef.current) return; 
 
     setHasSubmitted(true);
+    hasSubmittedRef.current = true;
     
     try {
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
       await setDoc(pRef, {
         name: userName,
-        [`q_${session.currentQuestion}_choice`]: myAnswerRef.current || '未作答',
-        [`q_${session.currentQuestion}_text`]: myTextRef.current || (isAuto ? '時間到系統自動交卷' : ''),
+        [`q_${currentSession.currentQuestion}_choice`]: myAnswerRef.current || '未作答',
+        [`q_${currentSession.currentQuestion}_text`]: myTextRef.current || (isAuto ? '時間到系統自動交卷' : ''),
         updatedAt: Date.now()
       }, { merge: true });
     } catch(e) {
@@ -969,8 +984,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     await setDoc(pRef, { rewardTrigger: Date.now() }, { merge: true });
   };
 
-  const sendTeacherMessage = () => {
-    updateSession({ teacherMessage });
+  const sendTeacherMessage = async () => {
+    await updateSession({ teacherMessage });
     alert("廣播訊息已發送至學員畫面！");
   };
 
@@ -1055,23 +1070,23 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
           </div>
 
           <div className="cyber-panel p-4 rounded-xl">
-            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息</label>
-            <textarea
-              value={teacherMessage}
-              onChange={(e) => setTeacherMessage(e.target.value)}
-              rows="2"
-              placeholder="輸入要推播給學員的提醒或引導..."
-              className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
-            />
-            <button onClick={sendTeacherMessage} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
-              發送廣播
-            </button>
-            <button onClick={() => { setTeacherMessage(''); updateSession({ teacherMessage: '' }); }} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm">
-              清除廣播
-            </button>
-          </div>
+        <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息</label>
+        <textarea
+          value={teacherMessage}
+          onChange={(e) => setTeacherMessage(e.target.value)}
+          rows="2"
+          placeholder="輸入要推播給學員的提醒或引導..."
+          className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
+        />
+        <button onClick={sendTeacherMessage} disabled={isUpdating} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
+          發送廣播
+        </button>
+        <button onClick={async () => { setTeacherMessage(''); await updateSession({ teacherMessage: '' }); }} disabled={isUpdating} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm disabled:opacity-50">
+          清除廣播
+        </button>
+      </div>
 
-          <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
+      <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
