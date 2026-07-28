@@ -237,15 +237,14 @@ export default function LaborEduApp() {
   
   const { db, auth } = useMemo(() => {
     try {
-      // ✅ 修正了 API 金鑰中的錯字，確保與 Firebase 控制台完全一致！
       const firebaseConfig = {
-        apiKey: "AIzaSyDUWK4fLiiRWF5owKvtI-yQqj8bjUrKPC8", 
-        authDomain: "labor-edu.firebaseapp.com",
-        projectId: "labor-edu",
-        storageBucket: "labor-edu.firebasestorage.app",
-        messagingSenderId: "643910144514",
-        appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
-        measurementId: "G-6CCC25C7T0"
+       apiKey: "AIzaSyDUWK4fLiiRWF5oWKvtI-yQqj8bjUrKPC8",
+       authDomain: "labor-edu.firebaseapp.com",
+       projectId: "labor-edu",
+       storageBucket: "labor-edu.firebasestorage.app",
+       messagingSenderId: "643910144514",
+       appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+       measurementId: "G-6CCC25C7T0"
       };
       if (!firebaseConfig) throw new Error("Firebase config missing");
       
