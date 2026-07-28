@@ -237,7 +237,7 @@ export default function LaborEduApp() {
     try {
       // ✅ 修正了 API 金鑰中的錯字，確保與 Firebase 控制台完全一致！
       const firebaseConfig = {
-        apiKey: "AIzaSyDUWk4fLiiRWF5oWkvtI-yQqjBbjUrKPC8", 
+        apiKey: "AIzaSyDUWk4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
         authDomain: "labor-edu.firebaseapp.com",
         projectId: "labor-edu",
         storageBucket: "labor-edu.firebasestorage.app",
