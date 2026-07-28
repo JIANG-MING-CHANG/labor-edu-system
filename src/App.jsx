@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
+  BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
 } from 'recharts';
 import { 
@@ -225,34 +225,60 @@ class AudioEngine {
 }
 const sfx = new AudioEngine();
 
+// Custom UI Components to replace browser alerts/confirms safely
+const CustomAlert = ({ message, onClose, isDark }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className={`p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform transition-all animate-[shake_0.5s_ease-in-out] ${isDark ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-slate-900 border border-slate-200'}`}>
+      <div className="flex items-center mb-4 text-blue-500">
+        <MessageSquare className="mr-2 animate-pulse" size={24} />
+        <h3 className="font-bold text-lg tracking-wider">系統推播提醒</h3>
+      </div>
+      <p className="mb-6 whitespace-pre-wrap leading-relaxed font-medium">{message}</p>
+      <div className="flex justify-end">
+        <button onClick={onClose} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-105">
+          了解並確認
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const CustomConfirm = ({ message, onConfirm, onCancel, isDark }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className={`p-6 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all ${isDark ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-slate-900 border border-slate-200'}`}>
+      <div className="flex items-center mb-4 text-yellow-500">
+        <ShieldAlert className="mr-2" size={24} />
+        <h3 className="font-bold text-lg">確認操作</h3>
+      </div>
+      <p className="mb-6 leading-relaxed whitespace-pre-wrap">{message}</p>
+      <div className="flex justify-end space-x-3">
+        <button onClick={onCancel} className={`px-4 py-2 rounded-lg font-medium transition-colors ${isDark ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-200 hover:bg-slate-300'}`}>
+          取消
+        </button>
+        <button onClick={() => { onConfirm(); onCancel(); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg">
+          確定執行
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function LaborEduApp() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null); 
   const [userName, setUserName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [authError, setAuthError] = useState(null);
+  const [alertMsg, setAlertMsg] = useState(null);
+  const [confirmConfig, setConfirmConfig] = useState(null);
   
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'labor-edu-default';
   
   const { db, auth } = useMemo(() => {
     try {
-      let firebaseConfig;
-      // 優先使用平台環境變數 (支援即時預覽與外部部署相容)
-      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-        firebaseConfig = JSON.parse(__firebase_config);
-      } else {
-        // Vercel 外部部署時使用的設定檔
-        firebaseConfig = {
-          apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
-          authDomain: "labor-edu.firebaseapp.com",
-          projectId: "labor-edu",
-          storageBucket: "labor-edu.firebasestorage.app",
-          messagingSenderId: "643910144514",
-          appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
-          measurementId: "G-6CCC25C7T0"
-        };
-      }
-      if (!firebaseConfig || !firebaseConfig.apiKey) throw new Error("Firebase config missing");
+      // Use environment config if available, fallback to dummy for graceful error
+      const firebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+      if (!firebaseConfig) throw new Error("Firebase config missing");
+      
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       return { db: getFirestore(app), auth: getAuth(app) };
     } catch (e) {
@@ -272,7 +298,6 @@ export default function LaborEduApp() {
         }
       } catch (err) {
         console.error("Auth Error:", err);
-        setAuthError(err.message);
       }
     };
     initAuth();
@@ -292,27 +317,7 @@ export default function LaborEduApp() {
   }`;
 
   if (!db || !auth) {
-    return <div className="p-10 text-red-500">系統初始化中，或缺乏後端設定。</div>;
-  }
-
-  if (authError) {
-    return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
-        <div className="max-w-md w-full bg-red-500/10 border-2 border-red-500/50 p-8 rounded-3xl shadow-2xl text-center backdrop-blur-md">
-           <ShieldAlert className="mx-auto mb-4 text-red-500" size={64} />
-           <h2 className="text-2xl font-black text-red-500 mb-4">Firebase 連線異常</h2>
-           <p className="text-sm font-mono bg-black/20 p-4 rounded-xl mb-6 break-words text-red-400">
-             {authError}
-           </p>
-           <p className="font-bold opacity-90 mb-3 text-left">排解指南 (Vercel 部署常見問題)：</p>
-           <ul className="text-sm opacity-80 text-left list-disc list-inside space-y-3 mb-6">
-             <li><strong>網域未授權 (最常見)：</strong>請至 Firebase Console &gt; Authentication &gt; Settings &gt; Authorized domains，新增您的 Vercel 網域 <code>labor-edu-system.vercel.app</code>。</li>
-             <li><strong>API 金鑰失效：</strong>請確認程式碼中的 <code>firebaseConfig</code> 確實為您 Firebase 專案的正確參數。</li>
-             <li><strong>未啟用匿名登入：</strong>請確認 Firebase Authentication 的 Sign-in method 中已開啟「匿名 (Anonymous)」。</li>
-           </ul>
-        </div>
-      </div>
-    );
+    return <div className="p-10 text-red-500 text-center font-bold">系統初始化中，或缺乏安全的 Firebase 後端設定。</div>;
   }
 
   return (
@@ -328,22 +333,25 @@ export default function LaborEduApp() {
          <div className={`absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[150px] mix-blend-screen opacity-30 animate-pulse ${isDarkMode ? 'bg-purple-900' : 'bg-purple-300'}`} style={{animationDuration: '12s'}} />
       </div>
       
+      {alertMsg && <CustomAlert message={alertMsg} onClose={() => setAlertMsg(null)} isDark={isDarkMode} />}
+      {confirmConfig && <CustomConfirm {...confirmConfig} onCancel={() => setConfirmConfig(null)} isDark={isDarkMode} />}
+
       {!role ? (
         <LoginScreen setRole={(r, name) => {
           sfx.init(); 
           setUserName(name);
           setRole(r);
-        }} />
+        }} showAlert={setAlertMsg} />
       ) : role === 'teacher' ? (
-        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} />
+        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} showAlert={setAlertMsg} showConfirm={setConfirmConfig} />
       ) : (
-        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} />
+        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} showAlert={setAlertMsg} />
       )}
     </div>
   );
 }
 
-function LoginScreen({ setRole }) {
+function LoginScreen({ setRole, showAlert }) {
   const [name, setName] = useState('');
   const [teacherCode, setTeacherCode] = useState('');
   const [isTeacherLogin, setIsTeacherLogin] = useState(false);
@@ -356,23 +364,19 @@ function LoginScreen({ setRole }) {
   const handleTeacherLogin = (e) => {
     e.preventDefault();
     if (teacherCode === 'osti') setRole('teacher', 'Teacher');
-    else alert('教師密碼錯誤'); 
+    else if (showAlert) showAlert('教師密碼錯誤，請重新輸入。');
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/20 rounded-full blur-[100px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/20 rounded-full blur-[100px]" />
-
       <div className="z-10 text-center mb-10">
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
           LaborSphere
         </h1>
-        <p className="text-xl font-medium tracking-wide opacity-80">勞權教育課程互動</p>
+        <p className="text-xl font-medium tracking-wide opacity-80">勞權教育課程互動平台</p>
       </div>
 
       <div className="z-10 w-full max-w-md bg-white/10 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-slate-800 p-8 rounded-3xl shadow-2xl">
-        
         <div className="flex justify-center mb-6 space-x-2 bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl">
           <button 
             className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!isTeacherLogin ? 'bg-white dark:bg-slate-700 shadow-md text-blue-600 dark:text-blue-400' : 'opacity-60'}`}
@@ -428,7 +432,7 @@ function LoginScreen({ setRole }) {
   );
 }
 
-function StudentView({ db, appId, user, userName, isDark, onLogout }) {
+function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert }) {
   const [session, setSession] = useState(null);
   const [myAnswer, setMyAnswer] = useState(null);
   const [myText, setMyText] = useState('');
@@ -438,14 +442,15 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [confetti, setConfetti] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
-  const [lastReward, setLastReward] = useState(0);
 
+  // References for robust sync
   const myAnswerRef = useRef(myAnswer);
   const myTextRef = useRef(myText);
   const hasSubmittedRef = useRef(hasSubmitted);
   const sessionRefObj = useRef(session);
   const isIndividuallyLockedRef = useRef(isIndividuallyLocked);
   const lastRewardRef = useRef(0);
+  const lastBroadcastTimeRef = useRef(0);
 
   useEffect(() => { myAnswerRef.current = myAnswer; }, [myAnswer]);
   useEffect(() => { myTextRef.current = myText; }, [myText]);
@@ -480,6 +485,14 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           }
         }
         
+        // Handle teacher broadcast alerts
+        if (data.broadcast && data.broadcast.timestamp > lastBroadcastTimeRef.current) {
+          lastBroadcastTimeRef.current = data.broadcast.timestamp;
+          if (showAlert) showAlert(`👨‍🏫 講師廣播：\n\n${data.broadcast.text}`);
+          sfx.playTone(600, 'sine', 0.2, 0.1);
+        }
+        
+        // Reset state on new question
         if (prevSession && prevSession.currentQuestion !== data.currentQuestion) {
           setMyAnswer(null);
           setMyText('');
@@ -495,18 +508,17 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
     }, (err) => console.error(err));
     
     return () => unsub();
-  }, [user, db, appId]); 
+  }, [user, db, appId, showAlert]); 
 
+  // Watch for student's own specific doc overrides (kicks, rewards, answers)
   useEffect(() => {
     if (!user || session?.status === 'closed') return;
-    
-    // 使用 userName 作為文檔 ID，支援中途離開後以原名稱重新進入系統即可無縫銜接
     const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
     const unsub = onSnapshot(pRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.kicked) {
-          alert("您已被教師移出教室！");
+          if (showAlert) showAlert("您已被教師移出教室！");
           onLogout();
           return;
         }
@@ -530,18 +542,56 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
           setTimeout(() => setConfetti(false), 4000);
         }
       } else {
-        // 初次進入建立紀錄
         setDoc(pRef, { name: userName, updatedAt: Date.now() }, { merge: true });
       }
     });
     return () => unsub();
-  }, [user, db, appId, session?.currentQuestion, userName, onLogout]);
+  }, [user, db, appId, session?.currentQuestion, userName, onLogout, showAlert]);
+
+  // Synchronized Timer based on global endTime.
+  useEffect(() => {
+    if (session?.status === 'active' && session?.endTime) {
+      const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+      
+      // If already submitted, stop updating UI timer. It stays frozen.
+      if (hasSubmittedRef.current) return;
+      
+      setTimeLeft(calcTime()); 
+      
+      const interval = setInterval(() => {
+        // Double check submission inside interval
+        if (hasSubmittedRef.current) {
+           clearInterval(interval);
+           return;
+        }
+        
+        const remaining = calcTime();
+        setTimeLeft(remaining);
+        
+        if (remaining > 0 && remaining <= 10) {
+          sfx.tick(); 
+        }
+
+        // Auto submit when time is up
+        if (remaining === 0) {
+           confirmSubmission(true); 
+           clearInterval(interval);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [session?.status, session?.endTime]);
+
+  const selectOption = (choice) => {
+    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked || timeLeft === 0) return;
+    setMyAnswer(choice);
+  };
 
   const confirmSubmission = async (isAuto = false) => {
     const currentSession = sessionRefObj.current;
     if (currentSession?.status !== 'active' || hasSubmittedRef.current || isIndividuallyLockedRef.current || !user) return;
     
-    // 手動送出需有答案，時間到自動送出可為空
+    // Manual sub needs an answer
     if (!isAuto && !myAnswerRef.current) return; 
 
     setHasSubmitted(true);
@@ -557,46 +607,8 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
       }, { merge: true });
     } catch(e) {
       console.error("Save error:", e);
-      alert("儲存失敗，請檢查網路連線。");
+      if (showAlert) showAlert("儲存失敗，請檢查網路連線。");
     }
-  };
-
-  useEffect(() => {
-    if (session?.status === 'active' && session?.endTime) {
-      const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
-      
-      let remaining = calcTime();
-      setTimeLeft(remaining);
-      
-      // 若時間已到，立即自動送出
-      if (remaining === 0) {
-        if (!hasSubmittedRef.current) confirmSubmission(true);
-        return;
-      }
-      
-      const interval = setInterval(() => {
-        remaining = calcTime();
-        setTimeLeft(remaining);
-        
-        if (remaining > 0 && remaining <= 10) {
-          sfx.tick(); 
-        }
-
-        // 時間到自動交卷機制
-        if (remaining === 0) {
-          if (!hasSubmittedRef.current) {
-             confirmSubmission(true); 
-          }
-          clearInterval(interval);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [session?.status, session?.endTime]); 
-
-  const selectOption = (choice) => {
-    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked) return;
-    setMyAnswer(choice);
   };
 
   const toggleSound = () => setSoundOn(sfx.toggle());
@@ -630,7 +642,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   }
 
   const currentQ = SCENARIOS[session.currentQuestion];
-  const isLocked = session.status !== 'active' || isIndividuallyLocked || hasSubmitted;
+  const isLocked = session.status !== 'active' || isIndividuallyLocked || hasSubmitted || timeLeft === 0;
   const showResult = session.status === 'revealed';
   const isCorrect = myAnswer === currentQ.correctAnswer;
 
@@ -664,16 +676,6 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
             <LogOut size={18} className="mr-2"/> 離開
          </button>
       </div>
-
-      {session.teacherMessage && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.5)] border border-white/20 animate-[shake_0.5s_ease-in-out]">
-          <div className="flex items-center font-bold text-lg">
-            <MessageSquare className="mr-3 animate-pulse" size={24} />
-            👨‍🏫 講師答覆
-          </div>
-          <p className="mt-1 ml-9">{session.teacherMessage}</p>
-        </div>
-      )}
 
       {confetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -715,7 +717,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
         </div>
       </div>
 
-      {/* Question */}
+      {/* Question Card */}
       <div className="glass-card rounded-3xl overflow-hidden mb-6 transform transition-all hover:shadow-2xl">
         <div className="h-56 md:h-72 w-full relative group">
           <img src={currentQ.imgUrl} alt="Scenario" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -812,12 +814,13 @@ function StudentView({ db, appId, user, userName, isDark, onLogout }) {
               }`}
             >
               <CheckCircle2 size={20} className="mr-2"/> 
-              {hasSubmitted ? '答案已確認送出' : '確認作答並送出'}
+              {hasSubmitted ? '答案已確認送出 (時間凍結)' : '確認作答並送出'}
             </button>
           </div>
         </div>
       )}
 
+      {/* Result Explanations */}
       {showResult && (
         <div className={`p-8 rounded-3xl border-2 mb-10 glass-card relative overflow-hidden ${isCorrect ? 'border-green-400/50 bg-green-50/10' : 'border-red-400/50 bg-red-50/10'}`}>
            <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-20 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -875,11 +878,13 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
     fetchScores();
   }, [user, db, appId, userName]);
 
+  const handlePrint = () => window.print();
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center print:shadow-none print:border-none mt-12 md:mt-0">
-          <h2 className="text-3xl font-extrabold mb-2">訓練完成！</h2>
-          <p className="text-lg opacity-60 mb-8">{userName} 的專屬勞動意識雷達圖</p>
+          <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">訓練完成！</h2>
+          <p className="text-lg opacity-60 mb-8 font-bold">{userName} 的專屬勞動意識雷達圖</p>
           
           <div className="h-80 w-full mb-8">
             <ResponsiveContainer width="100%" height="100%">
@@ -888,25 +893,30 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
                 <PolarAngleAxis dataKey="subject" />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
                 <Radar name="得分率" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                <RechartsTooltip />
               </RadarChart>
             </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
              {scores.map(s => (
-               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
-                  <div className="text-sm opacity-60">{s.subject}</div>
-                  <div className="text-2xl font-bold text-blue-500">{s.A}%</div>
+               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl shadow-inner border border-slate-100 dark:border-slate-700">
+                  <div className="text-sm opacity-60 font-bold">{s.subject}</div>
+                  <div className="text-2xl font-black text-blue-500">{s.A}%</div>
                </div>
              ))}
           </div>
+
+          <button onClick={handlePrint} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-105 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all flex items-center justify-center mx-auto print:hidden">
+            <FileDown className="mr-2" /> 匯出報告 (PDF)
+          </button>
        </div>
     </div>
   );
 }
 
-function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
-  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, teacherMessage: '' });
+function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showConfirm }) {
+  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, broadcast: null });
   const [participants, setParticipants] = useState([]);
   const [timeLimit, setTimeLimit] = useState(5); 
   const [expectedCount, setExpectedCount] = useState(0); 
@@ -922,7 +932,6 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
         const data = snapshot.data();
         setSession(data);
         if (data.expectedCount !== undefined) setExpectedCount(data.expectedCount);
-        if (data.teacherMessage !== undefined) setTeacherMessage(data.teacherMessage);
       } else {
         setSession({ status: 'closed', currentQuestion: 0 });
       }
@@ -979,8 +988,11 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
       ? `系統目前為未開放狀態。\n確定要開放系統，並直接從第 ${idx + 1} 關開始嗎？` 
       : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間將依據設定重新計算。`;
       
-    if (window.confirm(msg)) {
-      updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
+    if (showConfirm) {
+      showConfirm({
+        message: msg,
+        onConfirm: () => updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount })
+      });
     }
   };
 
@@ -988,18 +1000,25 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
   const revealAnswer = () => updateSession({ status: 'revealed' });
 
   const endAndClearSession = async () => {
-    if(!window.confirm("確定要結束並清除所有學員資料嗎？(不可恢復)")) return;
-    const pColl = collection(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants');
-    const snaps = await getDocs(pColl);
-    const delPromises = snaps.docs.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', d.id)));
-    await Promise.all(delPromises);
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main'), { status: 'closed', currentQuestion: 0 });
+    const action = async () => {
+      const pColl = collection(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants');
+      const snaps = await getDocs(pColl);
+      const delPromises = snaps.docs.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', d.id)));
+      await Promise.all(delPromises);
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main'), { status: 'closed', currentQuestion: 0 });
+    };
+    if (showConfirm) {
+      showConfirm({ message: "確定要結束並清除所有學員資料嗎？(不可恢復)", onConfirm: action });
+    }
   };
 
   const kickStudent = async (uid, name) => {
-    if(window.confirm(`確定要將學員 ${name} 移出教室嗎？`)) {
+    const action = async () => {
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', uid);
       await setDoc(pRef, { kicked: true }, { merge: true });
+    };
+    if (showConfirm) {
+      showConfirm({ message: `確定要將學員 ${name} 移出教室嗎？`, onConfirm: action });
     }
   };
 
@@ -1014,8 +1033,12 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
   };
 
   const sendTeacherMessage = async () => {
-    await updateSession({ teacherMessage });
-    alert("答覆內容已發送至學員畫面！");
+    if (!teacherMessage.trim()) return;
+    await updateSession({ 
+      broadcast: { text: teacherMessage, timestamp: Date.now() } 
+    });
+    if (showAlert) showAlert("推播訊息已發送！學員畫面將跳出必須點擊確認的強制對話框。");
+    setTeacherMessage(""); 
   };
 
   const currentQ = SCENARIOS[session.currentQuestion] || SCENARIOS[0];
@@ -1033,8 +1056,9 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
     }
   });
 
+  // Structural strict layout for desktop compatibility
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-purple-500/30 transition-colors">
+    <div className="h-screen w-full overflow-hidden flex flex-col md:flex-row bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-purple-500/30 transition-colors">
       <style>{`
         .cyber-panel {
           background: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.7)'};
@@ -1049,8 +1073,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
         }
       `}</style>
       
-      {/* Sidebar Controls */}
-      <div className="w-full md:w-80 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+      {/* Sidebar Controls (Fixed width, scrollable inner) */}
+      <div className="w-full md:w-80 h-auto md:h-full overflow-y-auto shrink-0 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col backdrop-blur-xl relative z-20 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
         <h2 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 cyber-border pb-4 mt-8 md:mt-0">
           LaborSphere
           <span className="block text-sm font-medium tracking-widest opacity-60 text-blue-600 dark:text-blue-300 mt-1 uppercase">Control Center</span>
@@ -1077,8 +1101,10 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                 type="number" 
                 min="0"
                 value={expectedCount}
-                onChange={(e) => setExpectedCount(Number(e.target.value))}
-                onBlur={() => updateSession({ expectedCount })}
+                onChange={(e) => {
+                  setExpectedCount(Number(e.target.value));
+                  updateSession({ expectedCount: Number(e.target.value) });
+                }}
                 className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all"
               />
             </div>
@@ -1096,21 +1122,17 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
             </div>
           </div>
 
-          {}
           <div className="cyber-panel p-4 rounded-xl">
-            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體答覆內容</label>
+            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>強制對話框推播</label>
             <textarea
               value={teacherMessage}
               onChange={(e) => setTeacherMessage(e.target.value)}
               rows="2"
-              placeholder="輸入要回覆或推播給學員的內容..."
+              placeholder="輸入要推播給學員的提醒..."
               className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
             />
-            <button onClick={sendTeacherMessage} disabled={isUpdating} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
-              送出答覆
-            </button>
-            <button onClick={async () => { setTeacherMessage(''); await updateSession({ teacherMessage: '' }); }} disabled={isUpdating} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm disabled:opacity-50">
-              清除答覆
+            <button onClick={sendTeacherMessage} disabled={isUpdating || !teacherMessage.trim()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
+              發送全體廣播
             </button>
           </div>
 
@@ -1118,7 +1140,6 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
-          {/* Mission Grid */}
           <div className="grid grid-cols-5 gap-2 mb-6">
             {SCENARIOS.map((_, idx) => (
               <button
@@ -1139,7 +1160,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
           {session.status === 'closed' ? (
              <button onClick={startSession} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始 (第1關)'}
+               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始計時'}
              </button>
           ) : (
             <>
@@ -1157,7 +1178,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
 
               {session.status === 'revealed' && (
                 <button onClick={nextQuestion} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題'}
+                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題 (重啟計時)'}
                 </button>
               )}
             </>
@@ -1174,8 +1195,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
         </div>
       </div>
 
-      {}
-      <div className="flex-1 p-6 md:p-10 overflow-y-auto h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
+      {/* Main Dashboard Area (Scrollable remaining width) */}
+      <div className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgzMCwgNTgsIDEzOCwgMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] pointer-events-none opacity-50 z-0"></div>
 
          {session.status !== 'closed' && session.status !== 'finished' ? (
@@ -1188,7 +1209,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                    <div className="flex justify-between items-center mb-6 cyber-border pb-4">
                      <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
                      <span className="text-sm px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200 rounded-full font-mono">
-                       SYNC: {answerCount} / {participants.length} {session.expectedCount ? `(預計 ${session.expectedCount} 人)` : ''}
+                       SYNC: {answerCount} / {participants.filter(p=>!p.kicked).length} {session.expectedCount ? `(預計 ${session.expectedCount} 人)` : ''}
                      </span>
                    </div>
                    <div className="h-64">
@@ -1196,7 +1217,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                        <BarChart data={chartData}>
                          <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
                          <YAxis stroke="#64748b" allowDecimals={false} />
-                         <Tooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
+                         <RechartsTooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
                          <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1000}>
                            {chartData.map((entry, index) => {
                               const isCorrect = entry.name === currentQ.correctAnswer;
@@ -1220,7 +1241,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
-                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
+                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">學員設備正同步倒數計時。監控數據變化，適當時機可切換至討論模式。</p>
                      </div>
                    )}
                    {session.status === 'discussion' && (
@@ -1266,7 +1287,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
                 </div>
              </div>
 
-             {}
+             {/* Student Feedback Table */}
              <div className="cyber-panel rounded-3xl p-6 shadow-2xl">
                 <h3 className="font-bold text-xl mb-6 flex items-center text-blue-700 dark:text-blue-300 cyber-border pb-4"><Users className="mr-2"/> 學員即時遙測與陣列控制</h3>
                 <div className="overflow-x-auto">
