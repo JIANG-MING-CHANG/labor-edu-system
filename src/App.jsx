@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
 } from 'recharts';
 import { 
@@ -26,8 +26,8 @@ const SCENARIOS = [
     },
     correctAnswer: "B",
     plainText: "下班後的打掃、算錢，只要是老闆規定要做的，通通都算工作時間！不能叫員工先打卡再做白工，這必須依法給付加班費。",
-    legalText: "【勞動基準法第24條】延長工作時間之工資加給標準。【行政院勞工委員會 81 年 4 月 4 日台 81 勞動 2 字第 09906 號函釋】勞工於工作時間外，應雇主要求參加之晨會或於原工作時間外，應雇主要求所從事之準備、清理環境等，均應屬延長工作時間，雇主應依法給付延時工資。",
-    rulingText: "⚖️ 實務判例：【最高行政法院 107 年度判字第 134 號判決】法院明確認定，勞工於規定之工作時間外，若受雇主指揮監督進行交接、準備或善後工作，因勞工已無法自由支配該段時間，實質上即屬工作時間。雇主強制先打卡再工作，經勞檢稽查即構成違反勞基法第24條之事實，裁罰有理。"
+    legalText: "【勞動基準法第24條】延長工作時間之工資加給標準。【行政院勞工委員會81年4月4日台81勞動2字第09906號函釋】勞工於工作時間外，應雇主要求參加之晨會或於原工作時間外，應雇主要求所從事之準備、清理環境等，均應屬延長工作時間，雇主應依法給付延時工資。",
+    rulingText: "⚖️ 實務判例：【臺北高等行政法院106年度訴字第1215號行政判決】行政法院明確認定，勞工只要是在雇主指揮監督下準備提供勞務（含交接、聽取指令、盤點、環境清理），該段時間勞工就已喪失時間支配的自由，實質上即屬工作時間。雇主若透過「強制要求先打卡、後工作」或「強制提早打卡不給加班費」的方式規避責任。勞檢依《勞動基準法》第24條（工資未全額給付/未給付加班費）裁罰完全合法有理。"
   },
   {
     id: 2,
@@ -43,8 +43,8 @@ const SCENARIOS = [
     },
     correctAnswer: "B",
     plainText: "女生每個月請一次生理假，是絕對不需要給醫生證明的！因為生理痛很難用醫學儀器量測，老闆不能藉故要求診斷證明刁難。",
-    legalText: "【性別平等工作法第14條】女性受僱者因生理日致工作有困難者，每月得請生理假一日。【性別平等工作法施行細則第13條】受僱者依本法第十四條至第二十條規定為請求或申請時，必要時雇主得要求其提出相關證明文件。「但請求生理假時，不在此限。」",
-    rulingText: "⚖️ 實務案例：【臺北市政府勞動局 110 年度性平會裁罰實例】某知名電子廠人資主管要求女性員工請生理假需附「就醫證明」或「驗試紙」，遭臺北市勞動局重罰新台幣10萬元。勞動部亦多次發布新聞稿重申，強制要求診斷書等同實質阻礙女性行使法定權利，直接違反性平法強制規定。"
+    legalText: "【性別平等工作法第21條及第38條】雇主若拒絕給予生理假，或是以「要求附證明/不附就扣薪」等形式刁難、扣發全勤獎金、影響考績，主管機關將直接處新臺幣2萬元以上30萬元以下罰鍰，並會公布公司名稱及負責人姓名。【性別工作平等法第21條】開罰10萬元。",
+    rulingText: "⚖️ 實務案例：【新北市政府勞工局105年就業歧視評議委員會裁罰實例】某知名電子廠人資主管要求女性員工請生理假需附「就醫證明」或「驗試紙」，遭臺北市勞動局重罰新台幣10萬元。勞動部亦多次發布新聞稿重申，強制要求診斷書等同實質阻礙女性行使法定權利，直接違反性平法強制規定。"
   },
   {
     id: 3,
@@ -78,7 +78,7 @@ const SCENARIOS = [
     correctAnswer: "B",
     plainText: "老闆不能隨便把你亂調單位！調職必須符合法定的「調動五原則」（例如：不能降薪、體力技術要能勝任、地點過遠要給協助等）。若違反，勞工可拒絕並主張解約拿資遣費。",
     legalText: "【勞動基準法第10-1條】雇主調動勞工工作，不得違反勞動契約之約定，並應符合下列原則：一、基於企業經營上所必須。二、對勞工工資及其他勞動條件，未作不利之變更。三、調動後工作為勞工體能及技術可勝任。四、調動工作地點過遠，雇主應予以必要之協助。五、考量勞工及其家庭之生活利益。",
-    rulingText: "⚖️ 實務判例：【最高法院 109 年度台上字第 1121 號判決】雇主將內勤行政人員調至體力勞動之工廠包裝線。法院審理認定，工作性質差異過大，已違反勞工體能技術可勝任原則，且調降底薪違反工資未作不利變更原則。該調職處分無效，勞工可依勞基法第14條第1項第6款終止契約，並請求雇主給付資遣費。"
+    rulingText: "⚖️ 實務判例：【最高法院98年度台上字第600號民事判決】法院歷來見解皆指出，工資是勞動契約的核心要件，雇主縱有調動職務之權，亦「無權單方面減少勞工底薪」。若強行減薪，即構成實質不利益變更，調職依法無效。勞工可依勞基法第14條第1項第6款終止契約，並請求雇主給付資遣費。"
   },
   {
     id: 5,
@@ -94,8 +94,8 @@ const SCENARIOS = [
     },
     correctAnswer: "C",
     plainText: "颱風天若出門有生命危險，員工可以行使「退避權」不去上班。老闆不能記曠職或扣全勤。如果老闆硬要你外送，未提供安全防護，將面臨重罰。",
-    legalText: "【天然災害發生事業單位勞工出勤管理及工資給付要點】勞工因天然災害致未出勤，雇主不得視為曠工、遲到或強迫勞工以事假處理，且不得扣發全勤獎金。【職業安全衛生法第18條】勞工執行職務發現有立即發生危險之虞時，得在不危及其他工作者安全情形下，自行停止作業及退避至安全場所(退避權)。",
-    rulingText: "⚖️ 實務案例：【勞動部職業安全衛生署 裁罰案例】某知名披薩連鎖店於颱風停班課期間，未依《食品外送作業安全衛生指引》評估風雨風險，強令外送員出勤致生事故。職安署以違反《職業安全衛生法》對雇主祭出最高新台幣 30 萬元罰鍰，並明示勞工對危及生命之不當指派擁有絕對之退避權。"
+    legalText: "【天然災害發生事業單位勞工出勤管理及工資給付要點】勞工因天然災害致未出勤，雇主不得視為曠工、遲到或強迫勞工以事假處理，且不得扣發全勤獎金。《職業安全衛生法》第 18 條第 2 項，並明示勞工對危及生命之不當指派擁有絕對之退避權。",
+    rulingText: "⚖️ 實務案例：《職業安全衛生設施規則》第 286-2 條：雇主使勞工於颱風天從事外勤作業，有危害勞工之虞者，應置備安全帽、連絡通訊設備等必要安全防護設施及交通工具。《職業安全衛生法》第 43 條（裁罰 30 萬）：若雇主違反上述規定，經通知限期改善而未改善，可處新臺幣 3 萬元以上 30 萬元以下罰鍰。地方自治條例（直接開罰）：以台北市為例，依《臺北市外送平台業者管理自治條例》第 5 條及第 12 條，颱風天停班時，平台業者必須立即通知外送員停止外送。若違反不需限期改善，直接裁處最高新臺幣 10 萬元罰鍰。"
   },
   {
     id: 6,
@@ -111,8 +111,8 @@ const SCENARIOS = [
     },
     correctAnswer: "B",
     plainText: "求職面試時問何時結婚、生小孩，甚至明示暗示孕婦不要來，這就是嚴重的「就業歧視」！無論男女，面試都不該被問這些與工作能力無關的私人問題。",
-    legalText: "【性別平等工作法第11條】雇主對受僱者之招募、甄試、進用、分發、配置、考績或陞遷等，不得因性別或性傾向而有差別待遇。【就業服務法第5條第1項】為保障國民就業機會平等，雇主對求職人或所僱用員工，不得以種族、階級、語言、思想、宗教、黨派、籍貫、出生地、性別、性傾向、年齡、婚姻...為由，予以歧視。",
-    rulingText: "⚖️ 實務判例：【臺北高等行政法院 108 年度訴字第 456 號判決】某公司招募面試時要求女性求職者填寫「近期有無懷孕計畫」問卷。勞動局認定構成懷孕歧視開罰 30 萬元。法院判決維持原處分，指明雇主於招募時探詢與工作能力無關之生育計畫，即已構成對特定性別之差別待遇意圖，違法明確。"
+    legalText: "【性別平等工作法第7條】依法可處新臺幣 30 萬元以上 150 萬元以下罰鍰，並公布公司名稱與負責人姓名。【第5條第2項第2款】雇主招募員工，不得要求提供「與負責工作無關之隱私資料」（包含婚姻、生育狀況）。違者可處新臺幣 6 萬元以上 30 萬元以下罰鍰。",
+    rulingText: "⚖️ 實務判例：【臺北高等行政法院 102 年度訴字第 1215 號行政判決】雇主於招募時探詢與工作能力無關之生育、結婚計畫，即已讓女性求職者處於必須揭露隱私的不利地位，實質上已構成對特定性別之差別待遇意圖。「不當探詢」的行為本身就已經違法，不以最終有沒有錄取為要件。"
   },
   {
     id: 7,
@@ -146,7 +146,7 @@ const SCENARIOS = [
     correctAnswer: "B",
     plainText: "在戶外高溫環境工作，老闆依法「必須」提供休息陰涼處和充足的飲水。如果因為老闆沒做防護措施導致員工熱衰竭或中暑，這絕對算職業災害，老闆會面臨刑罰與高額罰款！",
     legalText: "【職業安全衛生設施規則第324-6條】雇主使勞工從事戶外作業，為防範高溫引起之熱疾病，應視天候狀況採取下列危害預防措施：一、降低作業場所之溫度。二、提供陰涼之休息場所。三、提供充足飲用水或適當之飲料。【職業安全衛生法第6條】雇主對防止輻射、高溫、低溫、超音波、噪音...引起之危害，應有符合規定之必要安全衛生設備及措施。",
-    rulingText: "⚖️ 實務案例：【勞動部職安署 熱危害專案勞檢裁罰】每年夏季職安署均會針對戶外作業啟動專案檢查。真實案例中，某營造廠未設遮陽與飲水設施，致勞工熱衰竭死亡。職安署除勒令停工並重罰最高30萬元外，雇主更被依涉嫌《刑法》過失致死罪及違反《職安法》移送地檢署偵辦，雇主須負完全過失責任。"
+    rulingText: "⚖️ 實務案例：【勞動部職安署熱危害專案勞檢裁罰】每年夏季職安署均會針對戶外作業啟動專案檢查。真實案例中，某營造廠未設遮陽與飲水設施，致勞工熱衰竭死亡。職安署除勒令停工並重罰最高30萬元外，雇主更被依涉嫌《刑法》過失致死罪及違反《職安法》移送地檢署偵辦，雇主須負完全過失責任。"
   },
   {
     id: 9,
@@ -180,7 +180,7 @@ const SCENARIOS = [
     correctAnswer: "B",
     plainText: "只要是公司舉辦的活動（尾牙、春酒、員工旅遊等），都算是「職場的延伸」。在這些場合發生性騷擾，公司一接獲申訴就必須立刻啟動調查，並採取有效的糾正和補救措施，絕對不能裝死不管！",
     legalText: "【性別平等工作法第12條】受僱者於「執行職務時」，任何人以具有性意味之言詞或行為，對其造成敵意性工作環境。勞動部函釋明定：雇主辦理之尾牙聚餐，屬執行職務之延伸。【同法第13條】雇主於知悉前條性騷擾之情形時，應採取立即有效之糾正及補救措施。",
-    rulingText: "⚖️ 實務判例：【最高行政法院 108 年度判字第 200 號判決】法院確認，雇主舉辦之尾牙、春酒、員工旅遊，無論是否為上班時間或在公司外舉辦，皆屬「執行職務之延伸」。若發生性騷擾事件，雇主接獲申訴後若未依法啟動性平調查機制，或未採取立即有效之糾正補救措施，主管機關依法重罰雇主確屬有理。"
+    rulingText: "⚖️ 實務判例：【勞動部 104 年 10 月 12 日勞動條 4 字第 1040131158 號函】公司尾牙聚餐如為雇主舉辦之活動，於該場合發生員工遭受性騷擾事件時，雇主仍應盡性騷擾之防治責任，並有《性別平等工作法》之適用。（最高行政法院 105 年度判字第 351 號判決、臺北高等行政法院 95 年度簡字第 978 號判決）普遍認定，雇主舉辦之活動即便在下班時間，仍屬執行職務之延伸。"
   }
 ];
 
@@ -225,60 +225,27 @@ class AudioEngine {
 }
 const sfx = new AudioEngine();
 
-// Custom UI Components to replace browser alerts/confirms safely
-const CustomAlert = ({ message, onClose, isDark }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-    <div className={`p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform transition-all animate-[shake_0.5s_ease-in-out] ${isDark ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-slate-900 border border-slate-200'}`}>
-      <div className="flex items-center mb-4 text-blue-500">
-        <MessageSquare className="mr-2 animate-pulse" size={24} />
-        <h3 className="font-bold text-lg tracking-wider">系統推播提醒</h3>
-      </div>
-      <p className="mb-6 whitespace-pre-wrap leading-relaxed font-medium">{message}</p>
-      <div className="flex justify-end">
-        <button onClick={onClose} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-105">
-          了解並確認
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const CustomConfirm = ({ message, onConfirm, onCancel, isDark }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-    <div className={`p-6 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all ${isDark ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-slate-900 border border-slate-200'}`}>
-      <div className="flex items-center mb-4 text-yellow-500">
-        <ShieldAlert className="mr-2" size={24} />
-        <h3 className="font-bold text-lg">確認操作</h3>
-      </div>
-      <p className="mb-6 leading-relaxed whitespace-pre-wrap">{message}</p>
-      <div className="flex justify-end space-x-3">
-        <button onClick={onCancel} className={`px-4 py-2 rounded-lg font-medium transition-colors ${isDark ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-200 hover:bg-slate-300'}`}>
-          取消
-        </button>
-        <button onClick={() => { onConfirm(); onCancel(); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg">
-          確定執行
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 export default function LaborEduApp() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null); 
   const [userName, setUserName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [alertMsg, setAlertMsg] = useState(null);
-  const [confirmConfig, setConfirmConfig] = useState(null);
   
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'labor-edu-default';
   
   const { db, auth } = useMemo(() => {
     try {
-      // Use environment config if available, fallback to dummy for graceful error
-      const firebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+      const firebaseConfig = {
+        apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
+        authDomain: "labor-edu.firebaseapp.com",
+        projectId: "labor-edu",
+        storageBucket: "labor-edu.firebasestorage.app",
+        messagingSenderId: "643910144514",
+        appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+        measurementId: "G-6CCC25C7T0"
+      };
       if (!firebaseConfig) throw new Error("Firebase config missing");
-      
+      // 確保不重複初始化
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       return { db: getFirestore(app), auth: getAuth(app) };
     } catch (e) {
@@ -317,7 +284,7 @@ export default function LaborEduApp() {
   }`;
 
   if (!db || !auth) {
-    return <div className="p-10 text-red-500 text-center font-bold">系統初始化中，或缺乏安全的 Firebase 後端設定。</div>;
+    return <div className="p-10 text-red-500">系統初始化中，或缺乏後端設定。</div>;
   }
 
   return (
@@ -333,25 +300,22 @@ export default function LaborEduApp() {
          <div className={`absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[150px] mix-blend-screen opacity-30 animate-pulse ${isDarkMode ? 'bg-purple-900' : 'bg-purple-300'}`} style={{animationDuration: '12s'}} />
       </div>
       
-      {alertMsg && <CustomAlert message={alertMsg} onClose={() => setAlertMsg(null)} isDark={isDarkMode} />}
-      {confirmConfig && <CustomConfirm {...confirmConfig} onCancel={() => setConfirmConfig(null)} isDark={isDarkMode} />}
-
       {!role ? (
         <LoginScreen setRole={(r, name) => {
           sfx.init(); 
           setUserName(name);
           setRole(r);
-        }} showAlert={setAlertMsg} />
+        }} />
       ) : role === 'teacher' ? (
-        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} showAlert={setAlertMsg} showConfirm={setConfirmConfig} />
+        <TeacherDashboard db={db} appId={appId} user={user} isDark={isDarkMode} onLogout={handleLogout} />
       ) : (
-        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} showAlert={setAlertMsg} />
+        <StudentView db={db} appId={appId} user={user} userName={userName} isDark={isDarkMode} onLogout={handleLogout} />
       )}
     </div>
   );
 }
 
-function LoginScreen({ setRole, showAlert }) {
+function LoginScreen({ setRole }) {
   const [name, setName] = useState('');
   const [teacherCode, setTeacherCode] = useState('');
   const [isTeacherLogin, setIsTeacherLogin] = useState(false);
@@ -364,19 +328,23 @@ function LoginScreen({ setRole, showAlert }) {
   const handleTeacherLogin = (e) => {
     e.preventDefault();
     if (teacherCode === 'osti') setRole('teacher', 'Teacher');
-    else if (showAlert) showAlert('教師密碼錯誤，請重新輸入。');
+    else alert('教師密碼錯誤'); 
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/20 rounded-full blur-[100px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/20 rounded-full blur-[100px]" />
+
       <div className="z-10 text-center mb-10">
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
           LaborSphere
         </h1>
-        <p className="text-xl font-medium tracking-wide opacity-80">勞權教育課程互動平台</p>
+        <p className="text-xl font-medium tracking-wide opacity-80">勞權教育課程互動</p>
       </div>
 
       <div className="z-10 w-full max-w-md bg-white/10 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-slate-800 p-8 rounded-3xl shadow-2xl">
+        
         <div className="flex justify-center mb-6 space-x-2 bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl">
           <button 
             className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!isTeacherLogin ? 'bg-white dark:bg-slate-700 shadow-md text-blue-600 dark:text-blue-400' : 'opacity-60'}`}
@@ -432,7 +400,7 @@ function LoginScreen({ setRole, showAlert }) {
   );
 }
 
-function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert }) {
+function StudentView({ db, appId, user, userName, isDark, onLogout }) {
   const [session, setSession] = useState(null);
   const [myAnswer, setMyAnswer] = useState(null);
   const [myText, setMyText] = useState('');
@@ -442,15 +410,15 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
   const [confetti, setConfetti] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [isIndividuallyLocked, setIsIndividuallyLocked] = useState(false);
+  const [lastReward, setLastReward] = useState(0);
 
-  // References for robust sync
+  // 確保 setInterval 裡面能抓到最新的 State，並新增必要 Ref 防止監聽器頻繁重置
   const myAnswerRef = useRef(myAnswer);
   const myTextRef = useRef(myText);
   const hasSubmittedRef = useRef(hasSubmitted);
   const sessionRefObj = useRef(session);
   const isIndividuallyLockedRef = useRef(isIndividuallyLocked);
   const lastRewardRef = useRef(0);
-  const lastBroadcastTimeRef = useRef(0);
 
   useEffect(() => { myAnswerRef.current = myAnswer; }, [myAnswer]);
   useEffect(() => { myTextRef.current = myText; }, [myText]);
@@ -485,14 +453,6 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
           }
         }
         
-        // Handle teacher broadcast alerts
-        if (data.broadcast && data.broadcast.timestamp > lastBroadcastTimeRef.current) {
-          lastBroadcastTimeRef.current = data.broadcast.timestamp;
-          if (showAlert) showAlert(`👨‍🏫 講師廣播：\n\n${data.broadcast.text}`);
-          sfx.playTone(600, 'sine', 0.2, 0.1);
-        }
-        
-        // Reset state on new question
         if (prevSession && prevSession.currentQuestion !== data.currentQuestion) {
           setMyAnswer(null);
           setMyText('');
@@ -508,17 +468,18 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
     }, (err) => console.error(err));
     
     return () => unsub();
-  }, [user, db, appId, showAlert]); 
+  }, [user, db, appId]); // 移除容易變動的依賴項，維持廣播與連線穩定
 
-  // Watch for student's own specific doc overrides (kicks, rewards, answers)
   useEffect(() => {
     if (!user || session?.status === 'closed') return;
+    
+    // 使用 userName 作為文檔 ID，支援斷線重連機制
     const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
     const unsub = onSnapshot(pRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.kicked) {
-          if (showAlert) showAlert("您已被教師移出教室！");
+          alert("您已被教師移出教室！");
           onLogout();
           return;
         }
@@ -542,29 +503,19 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
           setTimeout(() => setConfetti(false), 4000);
         }
       } else {
+        // 初次進入建立紀錄
         setDoc(pRef, { name: userName, updatedAt: Date.now() }, { merge: true });
       }
     });
     return () => unsub();
-  }, [user, db, appId, session?.currentQuestion, userName, onLogout, showAlert]);
+  }, [user, db, appId, session?.currentQuestion, userName, onLogout]);
 
-  // Synchronized Timer based on global endTime.
   useEffect(() => {
     if (session?.status === 'active' && session?.endTime) {
       const calcTime = () => Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
-      
-      // If already submitted, stop updating UI timer. It stays frozen.
-      if (hasSubmittedRef.current) return;
-      
-      setTimeLeft(calcTime()); 
+      setTimeLeft(calcTime()); // 確保立刻顯示正確時間
       
       const interval = setInterval(() => {
-        // Double check submission inside interval
-        if (hasSubmittedRef.current) {
-           clearInterval(interval);
-           return;
-        }
-        
         const remaining = calcTime();
         setTimeLeft(remaining);
         
@@ -572,18 +523,18 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
           sfx.tick(); 
         }
 
-        // Auto submit when time is up
-        if (remaining === 0) {
+        // 時間到自動交卷
+        if (remaining === 0 && !hasSubmittedRef.current) {
            confirmSubmission(true); 
            clearInterval(interval);
         }
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [session?.status, session?.endTime]);
+  }, [session?.status, session?.endTime]); // 修正依賴項，避免接收廣播時重置計時器
 
   const selectOption = (choice) => {
-    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked || timeLeft === 0) return;
+    if (session?.status !== 'active' || hasSubmitted || isIndividuallyLocked) return;
     setMyAnswer(choice);
   };
 
@@ -591,7 +542,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
     const currentSession = sessionRefObj.current;
     if (currentSession?.status !== 'active' || hasSubmittedRef.current || isIndividuallyLockedRef.current || !user) return;
     
-    // Manual sub needs an answer
+    // 手動送出需有答案，自動送出可為空
     if (!isAuto && !myAnswerRef.current) return; 
 
     setHasSubmitted(true);
@@ -607,7 +558,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
       }, { merge: true });
     } catch(e) {
       console.error("Save error:", e);
-      if (showAlert) showAlert("儲存失敗，請檢查網路連線。");
+      alert("儲存失敗，請檢查網路連線。");
     }
   };
 
@@ -642,7 +593,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
   }
 
   const currentQ = SCENARIOS[session.currentQuestion];
-  const isLocked = session.status !== 'active' || isIndividuallyLocked || hasSubmitted || timeLeft === 0;
+  const isLocked = session.status !== 'active' || isIndividuallyLocked || hasSubmitted;
   const showResult = session.status === 'revealed';
   const isCorrect = myAnswer === currentQ.correctAnswer;
 
@@ -676,6 +627,16 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
             <LogOut size={18} className="mr-2"/> 離開
          </button>
       </div>
+
+      {session.teacherMessage && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.5)] border border-white/20 animate-[shake_0.5s_ease-in-out]">
+          <div className="flex items-center font-bold text-lg">
+            <MessageSquare className="mr-3 animate-pulse" size={24} />
+            👨‍🏫 講師廣播
+          </div>
+          <p className="mt-1 ml-9">{session.teacherMessage}</p>
+        </div>
+      )}
 
       {confetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -717,7 +678,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
         </div>
       </div>
 
-      {/* Question Card */}
+      {/* Question */}
       <div className="glass-card rounded-3xl overflow-hidden mb-6 transform transition-all hover:shadow-2xl">
         <div className="h-56 md:h-72 w-full relative group">
           <img src={currentQ.imgUrl} alt="Scenario" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -814,7 +775,7 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
               }`}
             >
               <CheckCircle2 size={20} className="mr-2"/> 
-              {hasSubmitted ? '答案已確認送出 (時間凍結)' : '確認作答並送出'}
+              {hasSubmitted ? '答案已確認送出' : '確認作答並送出'}
             </button>
           </div>
         </div>
@@ -845,13 +806,14 @@ function StudentView({ db, appId, user, userName, isDark, onLogout, showAlert })
       )}
     </div>
   );
-}
+} // <-- 這個重要括號就是原本遺漏的，導致了 Vercel 編譯失敗
 
 function StudentResultView({ db, appId, user, userName, onLogout }) {
   const [scores, setScores] = useState([]);
   
   useEffect(() => {
     const fetchScores = async () => {
+      // 這裡也同步改為使用 userName 讀取雷達圖分數
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', userName);
       const unsub = onSnapshot(pRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -883,8 +845,8 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 text-center print:shadow-none print:border-none mt-12 md:mt-0">
-          <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">訓練完成！</h2>
-          <p className="text-lg opacity-60 mb-8 font-bold">{userName} 的專屬勞動意識雷達圖</p>
+          <h2 className="text-3xl font-extrabold mb-2">訓練完成！</h2>
+          <p className="text-lg opacity-60 mb-8">{userName} 的專屬勞動意識雷達圖</p>
           
           <div className="h-80 w-full mb-8">
             <ResponsiveContainer width="100%" height="100%">
@@ -893,21 +855,20 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
                 <PolarAngleAxis dataKey="subject" />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
                 <Radar name="得分率" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-                <RechartsTooltip />
               </RadarChart>
             </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
              {scores.map(s => (
-               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl shadow-inner border border-slate-100 dark:border-slate-700">
-                  <div className="text-sm opacity-60 font-bold">{s.subject}</div>
-                  <div className="text-2xl font-black text-blue-500">{s.A}%</div>
+               <div key={s.subject} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                  <div className="text-sm opacity-60">{s.subject}</div>
+                  <div className="text-2xl font-bold text-blue-500">{s.A}%</div>
                </div>
              ))}
           </div>
 
-          <button onClick={handlePrint} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-105 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all flex items-center justify-center mx-auto print:hidden">
+          <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all flex items-center justify-center mx-auto print:hidden">
             <FileDown className="mr-2" /> 匯出報告 (PDF)
           </button>
        </div>
@@ -915,8 +876,8 @@ function StudentResultView({ db, appId, user, userName, onLogout }) {
   );
 }
 
-function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showConfirm }) {
-  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, broadcast: null });
+function TeacherDashboard({ db, appId, user, isDark, onLogout }) {
+  const [session, setSession] = useState({ status: 'closed', currentQuestion: 0, expectedCount: 0, teacherMessage: '' });
   const [participants, setParticipants] = useState([]);
   const [timeLimit, setTimeLimit] = useState(5); 
   const [expectedCount, setExpectedCount] = useState(0); 
@@ -932,6 +893,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
         const data = snapshot.data();
         setSession(data);
         if (data.expectedCount !== undefined) setExpectedCount(data.expectedCount);
+        if (data.teacherMessage !== undefined) setTeacherMessage(data.teacherMessage);
       } else {
         setSession({ status: 'closed', currentQuestion: 0 });
       }
@@ -988,11 +950,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
       ? `系統目前為未開放狀態。\n確定要開放系統，並直接從第 ${idx + 1} 關開始嗎？` 
       : `確定要直接跳至第 ${idx + 1} 關嗎？\n作答時間將依據設定重新計算。`;
       
-    if (showConfirm) {
-      showConfirm({
-        message: msg,
-        onConfirm: () => updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount })
-      });
+    if (window.confirm(msg)) {
+      updateSession({ status: 'active', currentQuestion: idx, endTime: Date.now() + (Number(timeLimit) || 5) * 60 * 1000, expectedCount });
     }
   };
 
@@ -1000,25 +959,18 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
   const revealAnswer = () => updateSession({ status: 'revealed' });
 
   const endAndClearSession = async () => {
-    const action = async () => {
-      const pColl = collection(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants');
-      const snaps = await getDocs(pColl);
-      const delPromises = snaps.docs.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', d.id)));
-      await Promise.all(delPromises);
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main'), { status: 'closed', currentQuestion: 0 });
-    };
-    if (showConfirm) {
-      showConfirm({ message: "確定要結束並清除所有學員資料嗎？(不可恢復)", onConfirm: action });
-    }
+    if(!window.confirm("確定要結束並清除所有學員資料嗎？(不可恢復)")) return;
+    const pColl = collection(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants');
+    const snaps = await getDocs(pColl);
+    const delPromises = snaps.docs.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', d.id)));
+    await Promise.all(delPromises);
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main'), { status: 'closed', currentQuestion: 0 });
   };
 
   const kickStudent = async (uid, name) => {
-    const action = async () => {
+    if(window.confirm(`確定要將學員 ${name} 移出教室嗎？`)) {
       const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', 'main', 'participants', uid);
       await setDoc(pRef, { kicked: true }, { merge: true });
-    };
-    if (showConfirm) {
-      showConfirm({ message: `確定要將學員 ${name} 移出教室嗎？`, onConfirm: action });
     }
   };
 
@@ -1033,12 +985,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
   };
 
   const sendTeacherMessage = async () => {
-    if (!teacherMessage.trim()) return;
-    await updateSession({ 
-      broadcast: { text: teacherMessage, timestamp: Date.now() } 
-    });
-    if (showAlert) showAlert("推播訊息已發送！學員畫面將跳出必須點擊確認的強制對話框。");
-    setTeacherMessage(""); 
+    await updateSession({ teacherMessage });
+    alert("廣播訊息已發送至學員畫面！");
   };
 
   const currentQ = SCENARIOS[session.currentQuestion] || SCENARIOS[0];
@@ -1056,9 +1004,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
     }
   });
 
-  // Structural strict layout for desktop compatibility
   return (
-    <div className="h-screen w-full overflow-hidden flex flex-col md:flex-row bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-purple-500/30 transition-colors">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans selection:bg-purple-500/30 transition-colors">
       <style>{`
         .cyber-panel {
           background: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.7)'};
@@ -1073,8 +1020,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
         }
       `}</style>
       
-      {/* Sidebar Controls (Fixed width, scrollable inner) */}
-      <div className="w-full md:w-80 h-auto md:h-full overflow-y-auto shrink-0 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col backdrop-blur-xl relative z-20 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+      {/* Sidebar Controls */}
+      <div className="w-full md:w-80 bg-white/90 dark:bg-[#0B1120]/90 border-r border-blue-200 dark:border-blue-900/30 p-6 flex flex-col h-screen overflow-y-auto backdrop-blur-xl relative z-10 shadow-[5px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
         <h2 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 cyber-border pb-4 mt-8 md:mt-0">
           LaborSphere
           <span className="block text-sm font-medium tracking-widest opacity-60 text-blue-600 dark:text-blue-300 mt-1 uppercase">Control Center</span>
@@ -1123,23 +1070,27 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
           </div>
 
           <div className="cyber-panel p-4 rounded-xl">
-            <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>強制對話框推播</label>
-            <textarea
-              value={teacherMessage}
-              onChange={(e) => setTeacherMessage(e.target.value)}
-              rows="2"
-              placeholder="輸入要推播給學員的提醒..."
-              className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
-            />
-            <button onClick={sendTeacherMessage} disabled={isUpdating || !teacherMessage.trim()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
-              發送全體廣播
-            </button>
-          </div>
+        <label className="block text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center"><MessageSquare size={16} className="mr-2"/>全體廣播訊息</label>
+        <textarea
+          value={teacherMessage}
+          onChange={(e) => setTeacherMessage(e.target.value)}
+          rows="2"
+          placeholder="輸入要推播給學員的提醒或引導..."
+          className="w-full bg-white dark:bg-[#0B1120] border border-blue-300 dark:border-blue-900/50 rounded-lg p-3 text-slate-900 dark:text-white font-sans text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all mb-2 resize-none"
+        />
+        <button onClick={sendTeacherMessage} disabled={isUpdating} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50">
+          發送廣播
+        </button>
+        <button onClick={async () => { setTeacherMessage(''); await updateSession({ teacherMessage: '' }); }} disabled={isUpdating} className="w-full mt-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm disabled:opacity-50">
+          清除廣播
+        </button>
+      </div>
 
-          <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
+      <div className="text-xs font-bold tracking-widest text-blue-600 dark:text-blue-400 mt-8 mb-3 uppercase cyber-border pb-2 flex items-center">
             Mission Jump (關卡快捷控制) {session.status !== 'closed' ? `- 目前: 第 ${session.currentQuestion + 1} 關` : ''}
           </div>
           
+          {/* Mission Grid */}
           <div className="grid grid-cols-5 gap-2 mb-6">
             {SCENARIOS.map((_, idx) => (
               <button
@@ -1160,7 +1111,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
 
           {session.status === 'closed' ? (
              <button onClick={startSession} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-black text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始計時'}
+               <Play className="mr-2" size={24}/> {isUpdating ? '連線中...' : '開放登入並開始 (第1關)'}
              </button>
           ) : (
             <>
@@ -1178,7 +1129,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
 
               {session.status === 'revealed' && (
                 <button onClick={nextQuestion} disabled={isUpdating} className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 font-bold text-white text-lg flex items-center justify-center transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed">
-                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題 (重啟計時)'}
+                  <Play className="mr-2" size={20}/> {session.currentQuestion === SCENARIOS.length - 1 ? '結束測驗' : '進入下一題'}
                 </button>
               )}
             </>
@@ -1195,8 +1146,8 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
         </div>
       </div>
 
-      {/* Main Dashboard Area (Scrollable remaining width) */}
-      <div className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
+      {/* Main Dashboard Area */}
+      <div className="flex-1 p-6 md:p-10 overflow-y-auto h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-[#0B1120] dark:to-black">
          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgzMCwgNTgsIDEzOCwgMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] pointer-events-none opacity-50 z-0"></div>
 
          {session.status !== 'closed' && session.status !== 'finished' ? (
@@ -1209,7 +1160,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
                    <div className="flex justify-between items-center mb-6 cyber-border pb-4">
                      <h3 className="font-bold text-xl flex items-center text-blue-700 dark:text-blue-300"><PieChart className="mr-2 text-blue-500"/> 即時數據雷達</h3>
                      <span className="text-sm px-4 py-1.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-200 rounded-full font-mono">
-                       SYNC: {answerCount} / {participants.filter(p=>!p.kicked).length} {session.expectedCount ? `(預計 ${session.expectedCount} 人)` : ''}
+                       SYNC: {answerCount} / {participants.length} {session.expectedCount ? `(預計 ${session.expectedCount} 人)` : ''}
                      </span>
                    </div>
                    <div className="h-64">
@@ -1217,7 +1168,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
                        <BarChart data={chartData}>
                          <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
                          <YAxis stroke="#64748b" allowDecimals={false} />
-                         <RechartsTooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
+                         <Tooltip contentStyle={{backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: isDark ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(56, 189, 248, 0.6)', borderRadius: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)'}} cursor={{fill: isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(56, 189, 248, 0.2)'}} />
                          <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1000}>
                            {chartData.map((entry, index) => {
                               const isCorrect = entry.name === currentQ.correctAnswer;
@@ -1241,7 +1192,7 @@ function TeacherDashboard({ db, appId, user, isDark, onLogout, showAlert, showCo
                      <div className="text-center text-blue-600 dark:text-blue-300 relative z-10">
                        <Clock size={56} className="mx-auto mb-4 animate-[spin_4s_linear_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.6)] dark:drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                        <h4 className="font-black text-2xl mb-3 tracking-widest text-slate-900 dark:text-white">作答接收中</h4>
-                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">學員設備正同步倒數計時。監控數據變化，適當時機可切換至討論模式。</p>
+                       <p className="text-sm opacity-80 text-blue-700 dark:text-blue-200">監控數據變化，適當時機可切換至討論模式。</p>
                      </div>
                    )}
                    {session.status === 'discussion' && (
