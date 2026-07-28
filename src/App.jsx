@@ -236,16 +236,23 @@ export default function LaborEduApp() {
   
   const { db, auth } = useMemo(() => {
     try {
-      const firebaseConfig = {
-        apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
-        authDomain: "labor-edu.firebaseapp.com",
-        projectId: "labor-edu",
-        storageBucket: "labor-edu.firebasestorage.app",
-        messagingSenderId: "643910144514",
-        appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
-        measurementId: "G-6CCC25C7T0"
-      };
-      if (!firebaseConfig) throw new Error("Firebase config missing");
+      let firebaseConfig;
+      // 優先使用平台環境變數 (支援即時預覽與外部部署相容)
+      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        firebaseConfig = JSON.parse(__firebase_config);
+      } else {
+        // Vercel 外部部署時使用的設定檔
+        firebaseConfig = {
+          apiKey: "AIzaSyDUWK4fLiiRWF5oWkvtI-yQqj8bjUrKPC8", 
+          authDomain: "labor-edu.firebaseapp.com",
+          projectId: "labor-edu",
+          storageBucket: "labor-edu.firebasestorage.app",
+          messagingSenderId: "643910144514",
+          appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+          measurementId: "G-6CCC25C7T0"
+        };
+      }
+      if (!firebaseConfig || !firebaseConfig.apiKey) throw new Error("Firebase config missing");
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
       return { db: getFirestore(app), auth: getAuth(app) };
     } catch (e) {
@@ -293,14 +300,15 @@ export default function LaborEduApp() {
       <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
         <div className="max-w-md w-full bg-red-500/10 border-2 border-red-500/50 p-8 rounded-3xl shadow-2xl text-center backdrop-blur-md">
            <ShieldAlert className="mx-auto mb-4 text-red-500" size={64} />
-           <h2 className="text-2xl font-black text-red-500 mb-4">Firebase 驗證失敗</h2>
+           <h2 className="text-2xl font-black text-red-500 mb-4">Firebase 連線異常</h2>
            <p className="text-sm font-mono bg-black/20 p-4 rounded-xl mb-6 break-words text-red-400">
              {authError}
            </p>
-           <p className="font-medium opacity-80 mb-2">請檢查程式碼中的 <code>firebaseConfig</code>：</p>
-           <ul className="text-sm opacity-70 text-left list-disc list-inside space-y-2 mb-6">
-             <li><strong>目前的 API Key 無效</strong>，請將其替換為您自己 Firebase 專案的真實金鑰。</li>
-             <li>請確認已在 Firebase Console 的 Authentication 中啟用<strong>「匿名登入 (Anonymous)」</strong>。</li>
+           <p className="font-bold opacity-90 mb-3 text-left">排解指南 (Vercel 部署常見問題)：</p>
+           <ul className="text-sm opacity-80 text-left list-disc list-inside space-y-3 mb-6">
+             <li><strong>網域未授權 (最常見)：</strong>請至 Firebase Console &gt; Authentication &gt; Settings &gt; Authorized domains，新增您的 Vercel 網域 <code>labor-edu-system.vercel.app</code>。</li>
+             <li><strong>API 金鑰失效：</strong>請確認程式碼中的 <code>firebaseConfig</code> 確實為您 Firebase 專案的正確參數。</li>
+             <li><strong>未啟用匿名登入：</strong>請確認 Firebase Authentication 的 Sign-in method 中已開啟「匿名 (Anonymous)」。</li>
            </ul>
         </div>
       </div>
