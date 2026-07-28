@@ -235,7 +235,15 @@ export default function LaborEduApp() {
   
   const { db, auth } = useMemo(() => {
     try {
-      const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+      const firebaseConfig = {
+  apiKey: "AIzaSyDUWK4fLiiRWF5oWKvtI-yQqj8bjUrKPC8",
+  authDomain: "labor-edu.firebaseapp.com",
+  projectId: "labor-edu",
+  storageBucket: "labor-edu.firebasestorage.app",
+  messagingSenderId: "643910144514",
+  appId: "1:643910144514:web:09a477718ba419ad0f8d1b",
+  measurementId: "G-6CCC25C7T0"
+};
       if (!firebaseConfig) throw new Error("Firebase config missing");
       const app = initializeApp(firebaseConfig);
       return { db: getFirestore(app), auth: getAuth(app) };
